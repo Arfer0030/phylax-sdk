@@ -19,10 +19,12 @@ function DashboardPanel({
   activeView,
   onProvisionAgent,
   activeAgentCount,
+  totalActiveDailyLimit,
 }: {
   activeView: DashboardViewId;
   onProvisionAgent: () => void;
   activeAgentCount: number;
+  totalActiveDailyLimit: number;
 }) {
   if (activeView === "gas-tank") {
     return <GasTankWorkspace />;
@@ -44,7 +46,12 @@ function DashboardPanel({
               value: `${activeAgentCount} Accounts`,
               helper: "",
             },
-            { id: "limits", label: "Total Daily Limits", value: "150.00 USDC", helper: "" },
+            {
+              id: "limits",
+              label: "Total Daily Limits",
+              value: `${totalActiveDailyLimit.toFixed(2)} USDC`,
+              helper: "",
+            },
             { id: "anomalies", label: "Blocked Anomalies", value: "2 Reverted", helper: "" },
           ]}
         />
@@ -57,7 +64,12 @@ function DashboardPanel({
 export default function OwnerDashboard() {
   const [activeView, setActiveView] = useState<DashboardViewId>("overview");
   const [provisionOpen, setProvisionOpen] = useState(false);
-  const activeAgentCount = guardedAccounts.filter((account) => account.status === "Active").length;
+  const activeAccounts = guardedAccounts.filter((account) => account.status === "Active");
+  const activeAgentCount = activeAccounts.length;
+  const totalActiveDailyLimit = activeAccounts.reduce(
+    (total, account) => total + account.dailyLimit,
+    0,
+  );
 
   return (
     <>
@@ -73,6 +85,7 @@ export default function OwnerDashboard() {
             activeView={activeView}
             onProvisionAgent={() => setProvisionOpen(true)}
             activeAgentCount={activeAgentCount}
+            totalActiveDailyLimit={totalActiveDailyLimit}
           />
         </div>
 

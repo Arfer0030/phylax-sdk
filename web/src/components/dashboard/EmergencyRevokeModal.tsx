@@ -46,20 +46,24 @@ export default function EmergencyRevokeModal({
         </div>
 
         <div className="mt-8 space-y-3 border border-white/8 bg-[#111111] p-5">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="min-w-0">
               <p className="phx-label">Smart Account</p>
-              <p className="mt-2 font-[family:var(--font-mono)] text-[12px] text-zinc-400">
+              <p className="mt-2 break-all pr-3 font-[family:var(--font-mono)] text-[12px] leading-6 tracking-normal text-zinc-400">
                 {account.address}
               </p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="phx-label">Action Required</p>
-              <p className="mt-2 text-sm font-medium text-white">EOA Transaction Signature</p>
+              <p className="mt-2 text-sm font-medium leading-6 text-white">
+                EOA Transaction Signature
+              </p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="phx-label">Status Impact</p>
-              <p className="mt-2 text-sm font-medium text-white">Instant Session Termination</p>
+              <p className="mt-2 text-sm font-medium leading-6 text-white">
+                Instant Session Termination
+              </p>
             </div>
           </div>
         </div>

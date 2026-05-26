@@ -197,6 +197,8 @@ export default function GuardedAccountsTable({
               {accounts.map((account) => {
                 const visibleTargets = account.whitelist.slice(0, 2);
                 const hiddenCount = Math.max(account.whitelist.length - 2, 0);
+                const displayedDailyUsed =
+                  account.status === "Expired" ? 0 : account.dailyUsed;
 
                 return (
                   <tr key={account.id} className="border-b border-white/8 align-top">
@@ -214,7 +216,7 @@ export default function GuardedAccountsTable({
                       </div>
                     </td>
                     <td className="py-6 pr-6">
-                      <SpendingBar used={account.dailyUsed} limit={account.dailyLimit} />
+                      <SpendingBar used={displayedDailyUsed} limit={account.dailyLimit} />
                     </td>
                     <td className="py-6 pr-6">
                       <button

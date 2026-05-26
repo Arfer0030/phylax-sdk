@@ -16,3 +16,4 @@ agent-backend/.env
 contracts/cache/
 contracts/out/
 contracts/broadcast/
+web/next-env.d.ts

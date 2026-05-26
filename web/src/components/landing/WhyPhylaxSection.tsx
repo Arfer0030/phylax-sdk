@@ -1,38 +1,42 @@
+"use client";
+
 import LandingSectionEyebrow from "./LandingSectionEyebrow";
+import { Reveal, StaggerGroup, StaggerItem } from "./MotionReveal";
 import { whyPhylax } from "./landing-data";
 
 export default function WhyPhylaxSection() {
   return (
     <section id="why-phylax">
       <div className="mx-auto w-full max-w-7xl px-6 py-24 sm:px-10 lg:px-12">
-        <LandingSectionEyebrow label="Why Phylax" />
+        <Reveal>
+          <LandingSectionEyebrow label="Why Phylax" />
+        </Reveal>
 
         <div className="mt-10 grid gap-16 lg:grid-cols-[0.9fr_1.1fr]">
           <div />
-          <div>
+          <Reveal className="lg:col-start-2" delay={0.05}>
             <h2 className="phx-display max-w-4xl text-5xl leading-[0.96] sm:text-6xl">
               The immutable control layer built for autonomous AI safety
             </h2>
-          </div>
+          </Reveal>
         </div>
 
-        <div className="mt-16 grid gap-6 lg:grid-cols-3">
+        <StaggerGroup className="mt-16 grid gap-6 lg:grid-cols-3" delayChildren={0.08} stagger={0.08}>
           {whyPhylax.map((item) => (
-            <div
-              key={item.title}
-              className="group relative overflow-hidden border border-white/6 bg-white/[0.03] p-8 transition hover:border-white"
-            >
-              <div className="absolute left-8 top-8 h-3 w-3 rounded-sm bg-white transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:left-0 group-hover:top-0 group-hover:h-full group-hover:w-full group-hover:rounded-none" />
-              <span className="relative z-10 mb-16 block h-3 w-3 rounded-sm bg-white transition duration-300 group-hover:bg-black" />
-              <h3 className="phx-display relative z-10 text-4xl leading-tight transition duration-300 group-hover:text-black">
-                {item.title}
-              </h3>
-              <p className="phx-body relative z-10 mt-8 text-base transition duration-300 group-hover:text-black/80 sm:text-[17px]">
-                {item.description}
-              </p>
-            </div>
+            <StaggerItem key={item.title} y={28}>
+              <div className="group relative overflow-hidden border border-white/6 bg-white/[0.03] p-8 transition hover:border-white">
+                <div className="absolute left-8 top-8 h-3 w-3 rounded-sm bg-white transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:left-0 group-hover:top-0 group-hover:h-full group-hover:w-full group-hover:rounded-none" />
+                <span className="relative z-10 mb-16 block h-3 w-3 rounded-sm bg-white transition duration-300 group-hover:bg-black" />
+                <h3 className="phx-display relative z-10 text-4xl leading-tight transition duration-300 group-hover:text-black">
+                  {item.title}
+                </h3>
+                <p className="phx-body relative z-10 mt-8 text-base transition duration-300 group-hover:text-black/80 sm:text-[17px]">
+                  {item.description}
+                </p>
+              </div>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGroup>
       </div>
     </section>
   );

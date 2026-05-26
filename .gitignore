@@ -1,0 +1,16 @@
+node_modules/
+.pnpm-store/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env
+.env.local
+.env.*.local
+dashboard/.env
+agent-backend/.env
+!**/.env.example
+contracts/cache/
+contracts/out/
+contracts/broadcast/

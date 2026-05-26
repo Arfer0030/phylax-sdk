@@ -1,0 +1,6 @@
+{
+  "name": "Phylax SDK",
+  "description": "The Immutable Guardian for AI Agents. Standard ERC-4337 Account Abstraction with On-Chain programmable guardrails and gasless sessions on Arbitrum Sepolia.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -3,5 +3,8 @@ packages:
   - agent-backend
 allowBuilds:
   '@google/genai': true
+  bufferutil: false
   esbuild: true
+  keccak: false
   protobufjs: true
+  utf-8-validate: false

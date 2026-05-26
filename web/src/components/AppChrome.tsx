@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import PhylaxConnectButton from "./wallet/PhylaxConnectButton";
 
 type AppChromeProps = {
   children: ReactNode;
@@ -56,9 +57,7 @@ export default function AppChrome({ children }: AppChromeProps) {
             </nav>
 
             {isDashboard ? (
-              <button className="inline-flex items-center justify-center rounded-full bg-white px-5 py-2 text-[12px] font-bold text-black transition hover:bg-zinc-200">
-                Connect Wallet
-              </button>
+              <PhylaxConnectButton />
             ) : (
               <Link
                 href="/dashboard"

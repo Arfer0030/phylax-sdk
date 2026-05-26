@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "@rainbow-me/rainbowkit/styles.css";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import AppChrome from "@/components/AppChrome";
+import Web3Providers from "@/components/providers/Web3Providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,7 +33,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className={`${inter.variable} ${jetBrainsMono.variable}`}>
-        <AppChrome>{children}</AppChrome>
+        <Web3Providers>
+          <AppChrome>{children}</AppChrome>
+        </Web3Providers>
       </body>
     </html>
   );

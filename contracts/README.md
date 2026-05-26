@@ -1,66 +1,84 @@
-## Foundry
+# Phylax Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Smart contract layer untuk MVP `Phylax SDK`.
 
-Foundry consists of:
+Kontrak inti:
+- `ArbAgentAccount.sol`: smart account ERC-4337 untuk AI agent
+- `AI_GuardrailModule.sol`: expiry, spend limit, dan whitelist target
+- `ArbAgentAccountFactory.sol`: deploy `account + guardrail`
+- `ArbAgentPaymaster.sol`: sponsor gas via EntryPoint deposit, billing ke `gas tank` owner
+- `MockUSDC.sol`: token billing 6 desimal untuk local/dev flow
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Development
 
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```bash
+forge fmt
+forge test
 ```
 
-### Test
+## Deploy Flow
 
-```shell
-$ forge test
+Script deploy yang dipakai:
+
+1. `script/DeployPhylaxStack.s.sol`
+   - deploy `EntryPoint` jika belum ada
+   - deploy `MockUSDC` jika belum ada billing token
+   - deploy `ArbAgentAccountFactory`
+   - deploy `ArbAgentPaymaster`
+   - optional fund deposit/stake paymaster
+   - optional transfer ownership paymaster
+
+Sesudah infra terdeploy, owner onboarding dilakukan lewat `web/dashboard`:
+- create smart account
+- generate/register session signer
+- set spend limit
+- set whitelist target
+- top up gas tank
+- register smart account ke paymaster
+
+## Dry Run
+
+Dry run deploy infra:
+
+```bash
+forge script script/DeployPhylaxStack.s.sol:DeployPhylaxStack \
+  --rpc-url <RPC_URL> \
+  --gas-limit 30000000 \
+  -vvvv
 ```
 
-### Format
+Untuk broadcast, tambahkan:
 
-```shell
-$ forge fmt
+```bash
+--account <KEYSTORE_NAME> --broadcast
 ```
 
-### Gas Snapshots
+## Env: DeployPhylaxStack
 
-```shell
-$ forge snapshot
+Template:
+
+```bash
+contracts/.env.deploy.example
 ```
 
-### Anvil
+Opsional:
 
-```shell
-$ anvil
+```bash
+ENTRY_POINT_ADDRESS=0x...          # kalau kosong, deploy EntryPoint baru
+BILLING_TOKEN_ADDRESS=0x...        # kalau kosong, deploy MockUSDC baru
+TOKEN_PER_NATIVE_TOKEN=3000000000  # contoh quote billing token per 1 native token (1e18 basis)
+MARKUP_BPS=500                     # 5%
+INITIAL_PAYMASTER_DEPOSIT=100000000000000000
+INITIAL_PAYMASTER_STAKE=100000000000000000
+PAYMASTER_UNSTAKE_DELAY=86400
+PAYMASTER_OWNER=0x...
+MOCK_USDC_MINT_RECIPIENT=0x...
+INITIAL_MOCK_USDC_MINT=1000000000000
 ```
 
-### Deploy
+## Catatan
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+- jalur utama sesudah deploy adalah lewat `web/dashboard`, bukan lewat script bootstrap tambahan.
+- `ArbAgentPaymaster` saat ini memakai model quote statis `tokenPerNativeToken + markupBps`, belum oracle-based.
+- untuk local/anvil testing, `MockUSDC` cukup dipakai sebagai billing token dan bisa di-mint bebas.
+- `EntryPoint` dari reference `account-abstraction` melebihi EIP-170 contract size limit saat disimulasikan bila dideploy dari script. Untuk deployment nyata sebaiknya pakai EntryPoint standar yang memang sudah tersedia di network target, lalu isi `ENTRY_POINT_ADDRESS`.

@@ -1,31 +1,23 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { Reveal, StaggerGroup, StaggerItem } from "./MotionReveal";
 
-type LandingFooterProps = {
-  onNavigateToDashboard: () => void;
-  onNavigateToDocs: () => void;
-};
-
-export default function LandingFooter({
-  onNavigateToDashboard,
-  onNavigateToDocs,
-}: LandingFooterProps) {
+export default function LandingFooter() {
   return (
     <footer>
       <StaggerGroup
-        className="mx-auto grid w-full max-w-7xl gap-12 px-6 py-24 sm:px-10 lg:grid-cols-[1.15fr_0.85fr_0.85fr_0.85fr] lg:px-12"
+        className="mx-auto grid w-full max-w-7xl gap-12 px-6 py-24 sm:px-10 lg:grid-cols-[1.15fr_0.78fr_0.78fr_0.78fr_0.62fr] lg:px-12"
         delayChildren={0.04}
         stagger={0.08}
       >
         <StaggerItem>
           <div className="space-y-8">
-            <div className="inline-flex items-center gap-5">
-              <Image
-                src="/images/logo.png"
-                alt="Phylax logo"
+          <div className="inline-flex items-center gap-5">
+            <Image
+              src="/images/logo.png"
+              alt="Phylax logo"
                 width={68}
                 height={68}
                 className="h-[4.25rem] w-[4.25rem] object-contain"
@@ -35,13 +27,6 @@ export default function LandingFooter({
             <p className="phx-body max-w-sm text-lg leading-8">
               The immutable guardian for autonomous AI agents.
             </p>
-            <button
-              onClick={onNavigateToDashboard}
-              className="inline-flex items-center gap-2 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200"
-            >
-              Launch Dashboard
-              <ArrowRight className="h-4 w-4" />
-            </button>
           </div>
         </StaggerItem>
 
@@ -49,12 +34,13 @@ export default function LandingFooter({
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white">Platform</h3>
             <div className="space-y-3 text-lg text-zinc-400">
-              <button
-                onClick={onNavigateToDashboard}
-                className="block text-left transition hover:text-white"
+              <Link
+                href="/dashboard"
+                target="_self"
+                className="block transition hover:text-white"
               >
                 App Dashboard
-              </button>
+              </Link>
             </div>
           </div>
         </StaggerItem>
@@ -63,12 +49,13 @@ export default function LandingFooter({
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-white">Resources</h3>
             <div className="space-y-3 text-lg text-zinc-400">
-              <button
-                onClick={onNavigateToDocs}
-                className="block text-left transition hover:text-white"
+              <Link
+                href="/docs"
+                target="_self"
+                className="block transition hover:text-white"
               >
                 Documentation
-              </button>
+              </Link>
               <a
                 href="https://github.com/Arfer0030/phylax-sdk"
                 target="_blank"
@@ -78,6 +65,22 @@ export default function LandingFooter({
                 GitHub
               </a>
               <span className="block">Phylax SDK (NPM)</span>
+            </div>
+          </div>
+        </StaggerItem>
+
+        <StaggerItem>
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-white">Socials</h3>
+            <div className="space-y-3 text-lg text-zinc-400">
+              <a
+                href="https://x.com"
+                target="_blank"
+                rel="noreferrer"
+                className="block transition hover:text-white"
+              >
+                X
+              </a>
             </div>
           </div>
         </StaggerItem>

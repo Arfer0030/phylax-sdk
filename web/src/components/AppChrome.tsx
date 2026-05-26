@@ -13,6 +13,7 @@ type AppChromeProps = {
 export default function AppChrome({ children }: AppChromeProps) {
   const pathname = usePathname();
   const isHome = pathname === "/";
+  const isDashboard = pathname.startsWith("/dashboard");
 
   return (
     <div className="flex min-h-screen w-full flex-col justify-between bg-[#0a0b0f] font-sans text-[#E0E0E0] selection:bg-cyan-400 selection:text-black">
@@ -20,7 +21,7 @@ export default function AppChrome({ children }: AppChromeProps) {
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
           <Link
             href="/"
-            className="inline-flex select-none items-center gap-4.5 text-xl font-semibold tracking-[-0.04em] text-white sm:text-2xl"
+            className="inline-flex select-none items-center gap-4.5 text-white"
           >
             <Image
               src="/images/logo.png"
@@ -29,7 +30,9 @@ export default function AppChrome({ children }: AppChromeProps) {
               height={65}
               className="h-[3.25rem] w-[3.25rem] object-contain"
             />
-            <span>PHYLAX</span>
+            <span className="phx-display text-[2.3rem] leading-none tracking-[-0.06em]">
+              Phylax
+            </span>
           </Link>
 
           <div className="flex items-center gap-4 sm:gap-5">
@@ -52,12 +55,18 @@ export default function AppChrome({ children }: AppChromeProps) {
               </a>
             </nav>
 
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center rounded-full bg-white px-5 py-2 text-[12px] font-bold text-black transition hover:bg-zinc-200"
-            >
-              Dashboard
-            </Link>
+            {isDashboard ? (
+              <button className="inline-flex items-center justify-center rounded-full bg-white px-5 py-2 text-[12px] font-bold text-black transition hover:bg-zinc-200">
+                Connect Wallet
+              </button>
+            ) : (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center justify-center rounded-full bg-white px-5 py-2 text-[12px] font-bold text-black transition hover:bg-zinc-200"
+              >
+                Dashboard
+              </Link>
+            )}
 
             <div className="flex items-center gap-3 lg:hidden">
               <Link
@@ -85,7 +94,7 @@ export default function AppChrome({ children }: AppChromeProps) {
         {children}
       </main>
 
-      {!isHome && (
+      {!isHome && !isDashboard && (
         <footer className="border-t border-slate-900 bg-black/40 px-6 py-4 text-center text-[10px] uppercase tracking-[0.2em] text-gray-500">
           <span>PHYLAX SECURITY STANDARDS v1.0.4 / DECENTRALIZED POLICIES</span>
         </footer>

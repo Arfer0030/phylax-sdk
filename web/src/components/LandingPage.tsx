@@ -28,10 +28,7 @@ export default function LandingPage({
       <IntegrationStackSection />
       <WhyPhylaxSection />
       <SponsorsSection />
-      <LandingFooter
-        onNavigateToDashboard={onNavigateToDashboard}
-        onNavigateToDocs={onNavigateToDocs}
-      />
+      <LandingFooter />
     </div>
   );
 }

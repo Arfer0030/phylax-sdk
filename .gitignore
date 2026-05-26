@@ -1,5 +1,6 @@
 node_modules/
 .pnpm-store/
+.next/
 build/
 dist/
 coverage/
@@ -8,7 +9,7 @@ coverage/
 .env
 .env.local
 .env.*.local
-dashboard/.env
+web/.env
 agent-backend/.env
 !**/.env.example
 contracts/cache/

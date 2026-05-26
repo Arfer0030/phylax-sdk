@@ -18,6 +18,8 @@ contract AI_GuardrailModule {
     uint256 public maxDailyLimit;
     /// @notice Cumulative policy-accounted spend recorded in the active spend window.
     uint256 public spentToday;
+    /// @notice Configurable duration of the active spend window, denominated in seconds.
+    uint48 public spendWindowDuration;
 
     /// @notice Whitelist of execution targets the delegated AI session may call.
     mapping(address => bool) public targetWhitelist;
@@ -30,6 +32,8 @@ contract AI_GuardrailModule {
     event TargetWhitelistUpdated(address indexed target, bool isAllowed);
     /// @notice Emitted whenever the spend window is reset.
     event SpendWindowReset(uint48 indexed newWindowStart);
+    /// @notice Emitted whenever the spend window duration is updated.
+    event SpendWindowDurationUpdated(uint48 newDuration);
     /// @notice Emitted when a transaction spend amount is accounted against the active window.
     event SpendTracked(address indexed target, uint256 spendAmount, uint256 updatedSpentToday);
 
@@ -39,6 +43,7 @@ contract AI_GuardrailModule {
     error SessionExpired(uint48 expiry, uint48 currentTimestamp);
     error TargetNotWhitelisted(address target);
     error SpendLimitExceeded(uint256 attemptedSpend, uint256 maxAllowed);
+    error InvalidSpendWindowDuration();
 
     modifier onlyController() {
         if (msg.sender != controller) revert ControllerOnly();
@@ -51,6 +56,7 @@ contract AI_GuardrailModule {
         if (controller_ == address(0)) revert InvalidController();
         controller = controller_;
         spendWindowStart = uint48(block.timestamp);
+        spendWindowDuration = SPEND_WINDOW;
     }
 
     /// @notice Updates the delegated AI session expiry timestamp.
@@ -65,6 +71,15 @@ contract AI_GuardrailModule {
     function setMaxDailyLimit(uint256 newLimit) external onlyController {
         maxDailyLimit = newLimit;
         emit MaxDailyLimitUpdated(newLimit);
+    }
+
+    /// @notice Updates the duration used for rolling spend-limit enforcement.
+    /// @param newDuration The new spend-window duration denominated in seconds.
+    function setSpendWindowDuration(uint48 newDuration) external onlyController {
+        if (newDuration == 0) revert InvalidSpendWindowDuration();
+
+        spendWindowDuration = newDuration;
+        emit SpendWindowDurationUpdated(newDuration);
     }
 
     /// @notice Adds or removes a protocol target from the execution whitelist.
@@ -111,7 +126,7 @@ contract AI_GuardrailModule {
 
     /// @notice Resets the tracked spend when the active window has elapsed.
     function _rollSpendWindowIfNeeded() internal {
-        if (block.timestamp < spendWindowStart + SPEND_WINDOW) {
+        if (block.timestamp < spendWindowStart + spendWindowDuration) {
             return;
         }
 

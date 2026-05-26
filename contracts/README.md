@@ -9,6 +9,16 @@ Kontrak inti:
 - `ArbAgentPaymaster.sol`: sponsor gas via EntryPoint deposit, billing ke `gas tank` owner
 - `MockUSDC.sol`: token billing 6 desimal untuk local/dev flow
 
+Kapabilitas dashboard yang sudah dicakup kontrak:
+- provision agent satu kali via `createConfiguredAgentAccount(...)`
+- `agentName` on-chain per smart account
+- whitelist target dengan `name + address`
+- session expiry + configurable spend-window duration berbasis detik
+- daily-limit tracking via guardrail
+- paymaster gas tank top up + reserved-balance accounting
+- faucet publik `claimTestnetUSDC()` untuk flow testnet/demo
+- execution metadata event untuk feed activity log
+
 ## Development
 
 ```bash
@@ -32,6 +42,7 @@ Sesudah infra terdeploy, owner onboarding dilakukan lewat `web/dashboard`:
 - create smart account
 - generate/register session signer
 - set spend limit
+- set spend window duration
 - set whitelist target
 - top up gas tank
 - register smart account ke paymaster
@@ -58,7 +69,7 @@ Untuk broadcast, tambahkan:
 Template:
 
 ```bash
-contracts/.env.deploy.example
+contracts/.env.example
 ```
 
 Opsional:
@@ -80,5 +91,6 @@ INITIAL_MOCK_USDC_MINT=1000000000000
 
 - jalur utama sesudah deploy adalah lewat `web/dashboard`, bukan lewat script bootstrap tambahan.
 - `ArbAgentPaymaster` saat ini memakai model quote statis `tokenPerNativeToken + markupBps`, belum oracle-based.
-- untuk local/anvil testing, `MockUSDC` cukup dipakai sebagai billing token dan bisa di-mint bebas.
+- `ArbAgentPaymaster` sudah memakai reserved-balance settlement agar owner tidak bisa menarik saldo yang sedang dipakai user operation yang sudah tervalidasi.
+- untuk local/anvil testing, `MockUSDC` dipakai sebagai billing token, memiliki owner mint, dan menyediakan faucet publik untuk testnet/demo.
 - `EntryPoint` dari reference `account-abstraction` melebihi EIP-170 contract size limit saat disimulasikan bila dideploy dari script. Untuk deployment nyata sebaiknya pakai EntryPoint standar yang memang sudah tersedia di network target, lalu isi `ENTRY_POINT_ADDRESS`.

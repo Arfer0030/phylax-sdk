@@ -60,4 +60,35 @@ contract ArbAgentAccountFactoryTest is Test {
         vm.expectRevert(ArbAgentAccount.UnauthorizedCaller.selector);
         ArbAgentAccount(payable(accountAddress)).setGuardrailModule(replacementGuardrail);
     }
+
+    /// @notice Verifies the factory can provision an initial signer, limit, and whitelist in one deployment flow.
+    function test_createConfiguredAgentAccount_bootstrapsInitialPolicy() public {
+        address sessionSigner = makeAddr("sessionSigner");
+        uint48 expiry = uint48(block.timestamp + 2 days);
+        uint48 spendWindowDuration = 7 days;
+        string[] memory whitelistNames = new string[](2);
+        whitelistNames[0] = "Uniswap V3 Router";
+        whitelistNames[1] = "Aave V3 Pool";
+        address[] memory whitelistTargets = new address[](2);
+        whitelistTargets[0] = makeAddr("uniswapTarget");
+        whitelistTargets[1] = makeAddr("aaveTarget");
+
+        (address accountAddress, address guardrailAddress) = factory.createConfiguredAgentAccount(
+            owner, "Trader Agent", sessionSigner, expiry, spendWindowDuration, 75e6, whitelistNames, whitelistTargets
+        );
+
+        ArbAgentAccount account = ArbAgentAccount(payable(accountAddress));
+        AI_GuardrailModule guardrail = AI_GuardrailModule(guardrailAddress);
+
+        assertEq(account.agentName(), "Trader Agent");
+        assertEq(account.currentSessionKey(), sessionSigner);
+        assertEq(guardrail.sessionExpiry(), expiry);
+        assertEq(guardrail.spendWindowDuration(), spendWindowDuration);
+        assertEq(guardrail.maxDailyLimit(), 75e6);
+        assertTrue(guardrail.targetWhitelist(whitelistTargets[0]));
+        assertTrue(guardrail.targetWhitelist(whitelistTargets[1]));
+        assertEq(account.whitelistTargetName(whitelistTargets[0]), "Uniswap V3 Router");
+        assertEq(account.whitelistTargetName(whitelistTargets[1]), "Aave V3 Pool");
+        assertFalse(account.factoryBootstrapEnabled());
+    }
 }

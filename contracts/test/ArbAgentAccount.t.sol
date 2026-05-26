@@ -51,7 +51,7 @@ contract ArbAgentAccountTest is Test {
         vm.startPrank(owner);
         account.setGuardrailModule(guardrail);
         account.setMaxDailyLimit(50);
-        account.setProtocolWhitelist(address(whitelistedTarget), true);
+        account.setProtocolWhitelist(address(whitelistedTarget), "Uniswap V3 Router", true);
         account.setSessionSigner(sessionSigner, uint48(block.timestamp + 1 hours));
         vm.stopPrank();
     }
@@ -105,6 +105,56 @@ contract ArbAgentAccountTest is Test {
         assertEq(guardrail.spentToday(), 0);
     }
 
+    /// @notice Verifies account metadata and whitelist labels can be configured for dashboard consumption.
+    function test_setAccountMetadata_updatesDashboardState() public {
+        vm.startPrank(owner);
+        account.setAgentName("Trader Agent");
+        account.setSpendWindowDuration(7 days);
+        account.setProtocolWhitelist(address(blockedTarget), "Aave V3 Pool", true);
+        vm.stopPrank();
+
+        (
+            string memory currentAgentName,
+            address sessionSigner_,
+            uint48 sessionExpiry_,
+            uint48 spendWindowStart_,
+            uint48 spendWindowDuration_,
+            uint256 maxDailyLimit_,
+            uint256 spentToday_
+        ) = account.getDashboardState();
+
+        ArbAgentAccount.WhitelistTargetMetadata[] memory targets = account.getWhitelistTargets();
+
+        assertEq(currentAgentName, "Trader Agent");
+        assertEq(sessionSigner_, sessionSigner);
+        assertEq(sessionExpiry_, guardrail.sessionExpiry());
+        assertEq(spendWindowStart_, guardrail.spendWindowStart());
+        assertEq(spendWindowDuration_, 7 days);
+        assertEq(maxDailyLimit_, 50);
+        assertEq(spentToday_, 0);
+        assertEq(targets.length, 2);
+        assertEq(targets[1].target, address(blockedTarget));
+        assertEq(targets[1].name, "Aave V3 Pool");
+    }
+
+    /// @notice Verifies metadata-rich execution emits successfully for later activity-log indexing.
+    function test_executeWithMetadata_emitsExecutionMetadata() public {
+        vm.expectEmit(false, true, false, true);
+        emit ArbAgentAccount.ExecutionMetadataLogged(
+            address(whitelistedTarget), 0, 12, "Swap USDC -> ETH", "Whitelisted path via Uniswap V3", false
+        );
+
+        vm.prank(entryPoint);
+        account.executeWithMetadata(
+            address(whitelistedTarget),
+            0,
+            abi.encodeCall(MockExecutionTarget.perform, (111)),
+            12,
+            "Swap USDC -> ETH",
+            "Whitelisted path via Uniswap V3"
+        );
+    }
+
     /// @notice Verifies expired sessions cannot execute through the EntryPoint path.
     function test_execute_revertsWhenSessionExpired() public {
         vm.prank(owner);
@@ -154,6 +204,34 @@ contract ArbAgentAccountTest is Test {
 
         ValidationData memory parsed = _parseValidationData(validationData);
         assertEq(parsed.aggregator, address(1));
+    }
+
+    /// @notice Verifies owner-managed configuration permanently disables any unused factory bootstrap path.
+    function test_ownerConfiguration_disablesFactoryBootstrap() public {
+        address factory = makeAddr("factory");
+        ArbAgentAccount accountFromFactory = new ArbAgentAccount(IEntryPoint(entryPoint), owner, factory);
+        AI_GuardrailModule guardrailFromFactory = new AI_GuardrailModule(address(accountFromFactory));
+
+        vm.prank(owner);
+        accountFromFactory.setGuardrailModule(guardrailFromFactory);
+
+        assertTrue(accountFromFactory.factoryBootstrapEnabled());
+
+        vm.prank(owner);
+        accountFromFactory.setSessionSigner(sessionSigner, uint48(block.timestamp + 1 hours));
+
+        assertFalse(accountFromFactory.factoryBootstrapEnabled());
+
+        address[] memory targets = new address[](1);
+        targets[0] = address(whitelistedTarget);
+        string[] memory targetNames = new string[](1);
+        targetNames[0] = "Uniswap V3 Router";
+
+        vm.prank(factory);
+        vm.expectRevert(ArbAgentAccount.FactoryBootstrapUnavailable.selector);
+        accountFromFactory.bootstrapInitialPolicy(
+            "Trader Agent", sessionSigner, uint48(block.timestamp + 2 hours), 1 days, 50, targetNames, targets
+        );
     }
 
     /// @notice Signs a user operation hash using an EIP-191 Ethereum signed message prefix.

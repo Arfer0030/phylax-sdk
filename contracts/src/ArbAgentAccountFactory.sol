@@ -21,6 +21,17 @@ contract ArbAgentAccountFactory {
     event AgentAccountCreated(
         address indexed owner, address indexed account, address indexed guardrailModule, uint256 ownerAccountIndex
     );
+    /// @notice Emitted when a newly created account is fully provisioned with initial metadata and policy.
+    event AgentAccountProvisioned(
+        address indexed owner,
+        address indexed account,
+        address indexed guardrailModule,
+        string agentName,
+        address sessionSigner,
+        uint48 sessionExpiry,
+        uint48 spendWindowDuration,
+        uint256 maxDailyLimit
+    );
 
     error InvalidEntryPoint();
     error InvalidOwner();
@@ -37,6 +48,14 @@ contract ArbAgentAccountFactory {
     /// @return account The deployed smart account address.
     /// @return guardrailModule The deployed guardrail module address linked to the account.
     function createAgentAccount(address owner) external returns (address account, address guardrailModule) {
+        return _createAgentAccount(owner);
+    }
+
+    /// @notice Deploys a new AI smart account and its guardrail module through the factory's internal flow.
+    /// @param owner The owner who will control session signers and policy updates for the new account.
+    /// @return account The deployed smart account address.
+    /// @return guardrailModule The deployed guardrail module address linked to the account.
+    function _createAgentAccount(address owner) internal returns (address account, address guardrailModule) {
         if (owner == address(0)) revert InvalidOwner();
 
         ArbAgentAccount newAccount = new ArbAgentAccount(entryPoint, owner, address(this));
@@ -51,6 +70,41 @@ contract ArbAgentAccountFactory {
         accountsByOwner[owner].push(account);
 
         emit AgentAccountCreated(owner, account, guardrailModule, accountsByOwner[owner].length - 1);
+    }
+
+    /// @notice Deploys a new smart account and applies its initial session policy in one transaction.
+    /// @param owner The owner who will manage session signers and risk parameters for the new account.
+    /// @param sessionSigner The delegated session signer generated for the AI agent.
+    /// @param sessionExpiry The unix timestamp until which the delegated session remains valid.
+    /// @param maxDailyLimit The initial cumulative spend limit for the active spend window.
+    /// @param whitelistTargets The initial set of protocol targets allowed for the delegated AI session.
+    /// @return account The deployed smart account address.
+    /// @return guardrailModule The deployed guardrail module address linked to the account.
+    function createConfiguredAgentAccount(
+        address owner,
+        string calldata agentName,
+        address sessionSigner,
+        uint48 sessionExpiry,
+        uint48 spendWindowDuration,
+        uint256 maxDailyLimit,
+        string[] calldata whitelistNames,
+        address[] calldata whitelistTargets
+    ) external returns (address account, address guardrailModule) {
+        (account, guardrailModule) = _createAgentAccount(owner);
+        ArbAgentAccount(payable(account))
+            .bootstrapInitialPolicy(
+                agentName,
+                sessionSigner,
+                sessionExpiry,
+                spendWindowDuration,
+                maxDailyLimit,
+                whitelistNames,
+                whitelistTargets
+            );
+
+        emit AgentAccountProvisioned(
+            owner, account, guardrailModule, agentName, sessionSigner, sessionExpiry, spendWindowDuration, maxDailyLimit
+        );
     }
 
     /// @notice Returns every smart account created for a given owner.

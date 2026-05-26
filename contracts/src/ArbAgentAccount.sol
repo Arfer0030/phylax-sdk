@@ -12,6 +12,12 @@ import {AI_GuardrailModule} from "./AI_GuardrailModule.sol";
 /// @title ArbAgentAccount
 /// @notice Minimal ERC-4337 smart account that delegates UserOperation signing to a bounded AI session signer.
 contract ArbAgentAccount is BaseAccount {
+    /// @notice Whitelist target metadata returned to frontends for human-readable protocol labels.
+    struct WhitelistTargetMetadata {
+        address target;
+        string name;
+    }
+
     IEntryPoint private immutable i_entryPoint; // Immutable entry point keeps reads cheap on every validation.
 
     /// @notice Factory allowed to perform one-time bootstrap wiring of the guardrail module.
@@ -24,6 +30,15 @@ contract ArbAgentAccount is BaseAccount {
     address public currentSessionKey;
     /// @notice Guardrail module enforcing policy on delegated execution.
     AI_GuardrailModule public guardrailModule;
+    /// @notice Whether the deployment factory may still consume its one-time bootstrap privilege.
+    bool public factoryBootstrapEnabled;
+    /// @notice Human-readable name assigned by the owner for this guarded AI account.
+    string public agentName;
+
+    /// @notice Human-readable labels assigned to each currently whitelisted protocol target.
+    mapping(address => string) public whitelistTargetName;
+    address[] private whitelistTargets;
+    mapping(address => uint256) private whitelistTargetIndexPlusOne;
 
     /// @notice Emitted when a two-step ownership transfer is initiated.
     event MasterOwnershipTransferStarted(address indexed currentOwner, address indexed pendingOwner);
@@ -37,6 +52,18 @@ contract ArbAgentAccount is BaseAccount {
     event SessionSignerRevoked();
     /// @notice Emitted after successful execution through the smart account.
     event Executed(address indexed target, uint256 value, uint256 spendAmount);
+    /// @notice Emitted when the one-time factory bootstrap path is consumed or disabled.
+    event FactoryBootstrapDisabled();
+    /// @notice Emitted when the factory applies the initial session policy during provisioning.
+    event FactoryPolicyBootstrapped(address indexed signer, uint48 expiry, uint256 maxDailyLimit);
+    /// @notice Emitted when the owner updates the display name used for this guarded account.
+    event AgentNameUpdated(string newAgentName);
+    /// @notice Emitted when a whitelist target label is added, updated, or removed.
+    event WhitelistTargetMetadataUpdated(address indexed target, string targetName, bool isAllowed);
+    /// @notice Emitted when an execution succeeds with user-supplied activity metadata for dashboard rendering.
+    event ExecutionMetadataLogged(
+        address indexed target, uint256 value, uint256 spendAmount, string action, string context, bool ownerBypass
+    );
 
     error InvalidEntryPoint();
     error InvalidOwner();
@@ -45,6 +72,10 @@ contract ArbAgentAccount is BaseAccount {
     error UnauthorizedCaller();
     error GuardrailModuleNotSet();
     error InvalidGuardrailController();
+    error FactoryBootstrapUnavailable();
+    error InvalidAgentName();
+    error InvalidWhitelistMetadata();
+    error MismatchedWhitelistMetadata();
 
     modifier onlyMasterOwner() {
         if (msg.sender != masterOwner) revert UnauthorizedCaller();
@@ -62,6 +93,7 @@ contract ArbAgentAccount is BaseAccount {
         i_entryPoint = entryPoint_;
         deploymentFactory = deploymentFactory_;
         masterOwner = initialOwner;
+        factoryBootstrapEnabled = deploymentFactory_ != address(0);
 
         emit MasterOwnershipTransferred(address(0), initialOwner);
     }
@@ -114,6 +146,8 @@ contract ArbAgentAccount is BaseAccount {
     function setSessionSigner(address signer, uint48 expiry) external onlyMasterOwner {
         if (signer == address(0)) revert InvalidSessionSigner();
 
+        _disableFactoryBootstrap();
+
         AI_GuardrailModule module = _requireGuardrailModule();
         currentSessionKey = signer;
         module.setSessionExpiry(expiry);
@@ -123,6 +157,8 @@ contract ArbAgentAccount is BaseAccount {
 
     /// @notice Revokes the delegated AI session signer and expires the active session immediately.
     function revokeSessionSigner() external onlyMasterOwner {
+        _disableFactoryBootstrap();
+
         AI_GuardrailModule module = _requireGuardrailModule();
         currentSessionKey = address(0);
         module.setSessionExpiry(0);
@@ -133,19 +169,86 @@ contract ArbAgentAccount is BaseAccount {
     /// @notice Updates the maximum tracked spend allowed within the guardrail spend window.
     /// @param newLimit The maximum cumulative spend allowed in the active window.
     function setMaxDailyLimit(uint256 newLimit) external onlyMasterOwner {
+        _disableFactoryBootstrap();
         _requireGuardrailModule().setMaxDailyLimit(newLimit);
+    }
+
+    /// @notice Updates the configured spend-window duration used for rolling cap enforcement.
+    /// @param newDuration The duration in seconds for each spend window.
+    function setSpendWindowDuration(uint48 newDuration) external onlyMasterOwner {
+        _disableFactoryBootstrap();
+        _requireGuardrailModule().setSpendWindowDuration(newDuration);
     }
 
     /// @notice Adds or removes a protocol target from the guardrail whitelist.
     /// @param target The external contract the AI agent may call.
     /// @param isAllowed Whether the target should be whitelisted.
     function setProtocolWhitelist(address target, bool isAllowed) external onlyMasterOwner {
-        _requireGuardrailModule().setTargetWhitelist(target, isAllowed);
+        _disableFactoryBootstrap();
+        _setProtocolWhitelist(target, whitelistTargetName[target], isAllowed, false);
+    }
+
+    /// @notice Adds or removes a protocol target from the guardrail whitelist while managing its display label.
+    /// @param target The external contract the AI agent may call.
+    /// @param targetName The human-readable label shown in owner dashboards for this target.
+    /// @param isAllowed Whether the target should be whitelisted.
+    function setProtocolWhitelist(address target, string calldata targetName, bool isAllowed) external onlyMasterOwner {
+        _disableFactoryBootstrap();
+        _setProtocolWhitelist(target, targetName, isAllowed, true);
+    }
+
+    /// @notice Updates the human-readable name attached to this guarded AI account.
+    /// @param newAgentName The owner-defined display name used by frontends and dashboards.
+    function setAgentName(string calldata newAgentName) external onlyMasterOwner {
+        _disableFactoryBootstrap();
+        _setAgentName(newAgentName);
     }
 
     /// @notice Manually resets the tracked spend window in the guardrail module.
     function resetSpendWindow() external onlyMasterOwner {
         _requireGuardrailModule().resetSpentToday();
+    }
+
+    /// @notice Applies the initial session signer, expiry, limit, and whitelist in a single factory-only bootstrap flow.
+    /// @param agentName_ The human-readable display name assigned to the new guarded account.
+    /// @param signer The delegated session signer generated for the AI agent.
+    /// @param expiry The unix timestamp until which the delegated session remains valid.
+    /// @param spendWindowDuration_ The rolling spend-window duration in seconds for the guardrail module.
+    /// @param maxDailyLimit_ The initial cumulative spending cap for the agent.
+    /// @param whitelistTargetNames The human-readable labels attached to each whitelisted protocol target.
+    /// @param whitelistTargets_ The initial set of protocol targets allowed for the delegated AI session.
+    function bootstrapInitialPolicy(
+        string calldata agentName_,
+        address signer,
+        uint48 expiry,
+        uint48 spendWindowDuration_,
+        uint256 maxDailyLimit_,
+        string[] calldata whitelistTargetNames,
+        address[] calldata whitelistTargets_
+    ) external {
+        if (msg.sender != deploymentFactory || !factoryBootstrapEnabled) {
+            revert FactoryBootstrapUnavailable();
+        }
+        if (signer == address(0)) revert InvalidSessionSigner();
+        if (whitelistTargetNames.length != whitelistTargets_.length) revert MismatchedWhitelistMetadata();
+
+        AI_GuardrailModule module = _requireGuardrailModule();
+        _setAgentName(agentName_);
+        currentSessionKey = signer;
+        module.setSessionExpiry(expiry);
+        module.setSpendWindowDuration(spendWindowDuration_);
+        module.setMaxDailyLimit(maxDailyLimit_);
+
+        uint256 whitelistTargetsLength = whitelistTargets_.length;
+        for (uint256 i; i < whitelistTargetsLength; ++i) {
+            _setProtocolWhitelist(whitelistTargets_[i], whitelistTargetNames[i], true, true);
+        }
+
+        factoryBootstrapEnabled = false;
+
+        emit FactoryPolicyBootstrapped(signer, expiry, maxDailyLimit_);
+        emit FactoryBootstrapDisabled();
+        emit SessionSignerUpdated(signer, expiry);
     }
 
     /// @notice Executes a guarded transaction through the smart account.
@@ -158,23 +261,78 @@ contract ArbAgentAccount is BaseAccount {
         external
         returns (bytes memory result)
     {
-        if (msg.sender == masterOwner) {
-            result = _call(target, value, data);
-            emit Executed(target, value, spendAmount);
-            return result;
-        }
-        if (msg.sender != address(entryPoint())) revert UnauthorizedCaller();
+        result = _execute(target, value, data, spendAmount, "", "");
+    }
 
-        _requireGuardrailModule().checkTransaction(target, spendAmount);
-        result = _call(target, value, data);
-
-        emit Executed(target, value, spendAmount);
+    /// @notice Executes a guarded transaction while attaching human-readable activity metadata for dashboards and logs.
+    /// @param target The destination contract or EOA.
+    /// @param value The native token value forwarded with the call.
+    /// @param data The calldata executed on the destination target.
+    /// @param spendAmount The policy-accounted spend amount associated with this execution.
+    /// @param action The human-readable action label shown in activity logs.
+    /// @param context The supporting human-readable note shown in activity logs.
+    /// @return result The raw return data produced by the target call.
+    function executeWithMetadata(
+        address target,
+        uint256 value,
+        bytes calldata data,
+        uint256 spendAmount,
+        string calldata action,
+        string calldata context
+    ) external returns (bytes memory result) {
+        result = _execute(target, value, data, spendAmount, action, context);
     }
 
     /// @notice Returns the current deposit balance of this account inside the EntryPoint.
     /// @return The entry point deposit allocated to this account.
     function getDeposit() external view returns (uint256) {
         return entryPoint().balanceOf(address(this));
+    }
+
+    /// @notice Returns the currently whitelisted protocol targets along with their owner-defined labels.
+    /// @return targets The active whitelist target metadata entries.
+    function getWhitelistTargets() external view returns (WhitelistTargetMetadata[] memory targets) {
+        uint256 whitelistTargetsLength = whitelistTargets.length;
+        targets = new WhitelistTargetMetadata[](whitelistTargetsLength);
+
+        for (uint256 i; i < whitelistTargetsLength; ++i) {
+            address target = whitelistTargets[i];
+            targets[i] = WhitelistTargetMetadata({target: target, name: whitelistTargetName[target]});
+        }
+    }
+
+    /// @notice Returns the current guardrail snapshot used by dashboard surfaces.
+    /// @return currentAgentName The owner-defined display name for this guarded account.
+    /// @return sessionSigner The current delegated session signer.
+    /// @return sessionExpiry The unix timestamp until which the session signer remains valid.
+    /// @return spendWindowStart The start timestamp of the active spend window.
+    /// @return spendWindowDuration The configured duration for each spend window in seconds.
+    /// @return maxDailyLimit The configured cumulative spend cap for the active window.
+    /// @return spentToday The cumulative spend already tracked in the active window.
+    function getDashboardState()
+        external
+        view
+        returns (
+            string memory currentAgentName,
+            address sessionSigner,
+            uint48 sessionExpiry,
+            uint48 spendWindowStart,
+            uint48 spendWindowDuration,
+            uint256 maxDailyLimit,
+            uint256 spentToday
+        )
+    {
+        AI_GuardrailModule module = _requireGuardrailModule();
+
+        return (
+            agentName,
+            currentSessionKey,
+            module.sessionExpiry(),
+            module.spendWindowStart(),
+            module.spendWindowDuration(),
+            module.maxDailyLimit(),
+            module.spentToday()
+        );
     }
 
     /// @notice Deposits native token into the EntryPoint for future account-prefund usage.
@@ -227,6 +385,68 @@ contract ArbAgentAccount is BaseAccount {
         if (address(module) == address(0)) revert GuardrailModuleNotSet();
     }
 
+    /// @notice Applies a human-readable display name to the account and emits the corresponding metadata event.
+    /// @param newAgentName The owner-defined display name used by frontends.
+    function _setAgentName(string memory newAgentName) internal {
+        if (bytes(newAgentName).length == 0) revert InvalidAgentName();
+        agentName = newAgentName;
+        emit AgentNameUpdated(newAgentName);
+    }
+
+    /// @notice Permanently disables the factory bootstrap path once the owner begins manual configuration.
+    function _disableFactoryBootstrap() internal {
+        if (!factoryBootstrapEnabled) {
+            return;
+        }
+
+        factoryBootstrapEnabled = false;
+        emit FactoryBootstrapDisabled();
+    }
+
+    /// @notice Applies or removes whitelist metadata while keeping the guardrail module in sync.
+    /// @param target The external contract the AI agent may call.
+    /// @param targetName The human-readable label attached to the target.
+    /// @param isAllowed Whether the target should remain on the whitelist.
+    /// @param shouldUpdateName Whether the provided label should overwrite the stored label.
+    function _setProtocolWhitelist(address target, string memory targetName, bool isAllowed, bool shouldUpdateName)
+        internal
+    {
+        AI_GuardrailModule module = _requireGuardrailModule();
+        module.setTargetWhitelist(target, isAllowed);
+
+        if (isAllowed) {
+            string memory nextName = shouldUpdateName ? targetName : whitelistTargetName[target];
+            if (bytes(nextName).length == 0) revert InvalidWhitelistMetadata();
+
+            if (whitelistTargetIndexPlusOne[target] == 0) {
+                whitelistTargets.push(target);
+                whitelistTargetIndexPlusOne[target] = whitelistTargets.length;
+            }
+
+            whitelistTargetName[target] = nextName;
+            emit WhitelistTargetMetadataUpdated(target, nextName, true);
+            return;
+        }
+
+        uint256 indexPlusOne = whitelistTargetIndexPlusOne[target];
+        if (indexPlusOne != 0) {
+            uint256 removeIndex = indexPlusOne - 1;
+            uint256 lastIndex = whitelistTargets.length - 1;
+
+            if (removeIndex != lastIndex) {
+                address lastTarget = whitelistTargets[lastIndex];
+                whitelistTargets[removeIndex] = lastTarget;
+                whitelistTargetIndexPlusOne[lastTarget] = indexPlusOne;
+            }
+
+            whitelistTargets.pop();
+            delete whitelistTargetIndexPlusOne[target];
+        }
+
+        delete whitelistTargetName[target];
+        emit WhitelistTargetMetadataUpdated(target, "", false);
+    }
+
     /// @notice Executes a low-level call and bubbles up any revert data from the target.
     /// @param target The destination contract or EOA.
     /// @param value The native token amount to forward with the call.
@@ -241,5 +461,37 @@ contract ArbAgentAccount is BaseAccount {
         }
 
         return returnData;
+    }
+
+    /// @notice Shared execution path used by plain and metadata-rich guarded calls.
+    /// @param target The destination contract or EOA.
+    /// @param value The native token value forwarded with the call.
+    /// @param data The calldata executed on the destination target.
+    /// @param spendAmount The policy-accounted spend amount associated with this execution.
+    /// @param action The human-readable action label shown in activity logs.
+    /// @param context The supporting human-readable note shown in activity logs.
+    /// @return result The raw return data produced by the target call.
+    function _execute(
+        address target,
+        uint256 value,
+        bytes calldata data,
+        uint256 spendAmount,
+        string memory action,
+        string memory context
+    ) internal returns (bytes memory result) {
+        bool ownerBypass = msg.sender == masterOwner;
+        if (ownerBypass) {
+            result = _call(target, value, data);
+            emit Executed(target, value, spendAmount);
+            emit ExecutionMetadataLogged(target, value, spendAmount, action, context, true);
+            return result;
+        }
+        if (msg.sender != address(entryPoint())) revert UnauthorizedCaller();
+
+        _requireGuardrailModule().checkTransaction(target, spendAmount);
+        result = _call(target, value, data);
+
+        emit Executed(target, value, spendAmount);
+        emit ExecutionMetadataLogged(target, value, spendAmount, action, context, false);
     }
 }

@@ -57,6 +57,48 @@ contract ArbAgentPaymasterTest is Test {
         assertEq(billingToken.balanceOf(receiver), 750e6);
     }
 
+    /// @notice Verifies validation reserves gas tank balance until the user operation settles in postOp.
+    function test_validatePaymasterUserOp_reservesChargeUntilSettlement() public {
+        _topUpAndRegister(owner, ownerAccount, 10_000e6);
+
+        PackedUserOperation memory userOp;
+        userOp.sender = ownerAccount;
+        bytes32 userOpHash = keccak256("reserved-user-op");
+        uint256 maxCost = 1e14;
+        (,, uint256 reservedCharge) = paymaster.previewCharge(maxCost);
+
+        vm.prank(address(entryPoint));
+        paymaster.validatePaymasterUserOp(userOp, userOpHash, maxCost);
+
+        assertEq(paymaster.reservedGasTankBalance(owner), reservedCharge);
+        assertEq(paymaster.availableGasTankBalance(owner), 10_000e6 - reservedCharge);
+    }
+
+    /// @notice Verifies owners cannot withdraw the portion of gas tank balance already reserved for unsettled operations.
+    function test_withdrawGasTank_revertsWhenRequestedAmountIsReserved() public {
+        _topUpAndRegister(owner, ownerAccount, 10_000e6);
+
+        PackedUserOperation memory userOp;
+        userOp.sender = ownerAccount;
+        bytes32 userOpHash = keccak256("reserved-withdraw-user-op");
+        uint256 maxCost = 1e14;
+        (,, uint256 reservedCharge) = paymaster.previewCharge(maxCost);
+
+        vm.prank(address(entryPoint));
+        paymaster.validatePaymasterUserOp(userOp, userOpHash, maxCost);
+
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ArbAgentPaymaster.InsufficientGasTankBalance.selector,
+                owner,
+                10_000e6 - reservedCharge,
+                10_000e6 - reservedCharge + 1
+            )
+        );
+        paymaster.withdrawGasTank(receiver, 10_000e6 - reservedCharge + 1);
+    }
+
     /// @notice Verifies only the actual account owner can bind a smart account to their gas tank.
     function test_registerSponsoredAccount_requiresCurrentSmartAccountOwner() public {
         vm.prank(otherOwner);
@@ -67,6 +109,18 @@ contract ArbAgentPaymasterTest is Test {
         paymaster.registerSponsoredAccount(ownerAccount);
 
         assertEq(paymaster.sponsoredAccountOwner(ownerAccount), owner);
+        assertEq(paymaster.sponsoredStreamCount(owner), 1);
+    }
+
+    /// @notice Verifies removing sponsorship decrements the active sponsored-stream count and clears the owner mapping.
+    function test_removeSponsoredAccount_updatesSponsoredStreamCount() public {
+        _topUpAndRegister(owner, ownerAccount, 2_000e6);
+
+        vm.prank(owner);
+        paymaster.removeSponsoredAccount(ownerAccount);
+
+        assertEq(paymaster.sponsoredStreamCount(owner), 0);
+        assertEq(paymaster.sponsoredAccountOwner(ownerAccount), address(0));
     }
 
     /// @notice Verifies sponsorship validation fails when the owner's gas tank is underfunded.
@@ -119,7 +173,8 @@ contract ArbAgentPaymasterTest is Test {
         uint256 actualUserOpFeePerGas = 2e9;
 
         vm.prank(address(entryPoint));
-        (bytes memory context,) = paymaster.validatePaymasterUserOp(userOp, bytes32(0), actualGasCost * 2);
+        (bytes memory context,) =
+            paymaster.validatePaymasterUserOp(userOp, keccak256("settled-user-op"), actualGasCost * 2);
 
         (uint256 baseCharge, uint256 markupCharge, uint256 totalCharge) = paymaster.previewCharge(actualGasCost);
 
@@ -127,6 +182,7 @@ contract ArbAgentPaymasterTest is Test {
         paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, actualGasCost, actualUserOpFeePerGas);
 
         assertEq(paymaster.gasTankBalance(owner), 10_000e6 - totalCharge);
+        assertEq(paymaster.reservedGasTankBalance(owner), 0);
         assertEq(paymaster.collectedGasFees(), baseCharge);
         assertEq(paymaster.collectedMarkupFees(), markupCharge);
 
@@ -145,6 +201,7 @@ contract ArbAgentPaymasterTest is Test {
 
         vm.prank(owner);
         paymaster.registerSponsoredAccount(secondAccount);
+        assertEq(paymaster.sponsoredStreamCount(owner), 2);
 
         bytes memory firstContext = _validateForAccount(ownerAccount, 1e14);
         bytes memory secondContext = _validateForAccount(secondAccount, 2e14);
@@ -158,6 +215,25 @@ contract ArbAgentPaymasterTest is Test {
         vm.stopPrank();
 
         assertEq(paymaster.gasTankBalance(owner), 15_000e6 - firstCharge - secondCharge);
+    }
+
+    /// @notice Verifies pause mode blocks new sponsorship validations and gas tank deposits until the owner unpauses.
+    function test_pause_blocksValidationAndTopUps() public {
+        vm.prank(paymaster.owner());
+        paymaster.pause();
+
+        vm.startPrank(owner);
+        billingToken.approve(address(paymaster), 1_000e6);
+        vm.expectRevert("Pausable: paused");
+        paymaster.topUpGasTank(1_000e6);
+        vm.stopPrank();
+
+        PackedUserOperation memory userOp;
+        userOp.sender = ownerAccount;
+
+        vm.prank(address(entryPoint));
+        vm.expectRevert("Pausable: paused");
+        paymaster.validatePaymasterUserOp(userOp, keccak256("paused-user-op"), 1e14);
     }
 
     /// @notice Helper that funds an owner's gas tank and registers a sponsored account in one flow.
@@ -181,6 +257,6 @@ contract ArbAgentPaymasterTest is Test {
         userOp.sender = account;
 
         vm.prank(address(entryPoint));
-        (context,) = paymaster.validatePaymasterUserOp(userOp, bytes32(0), maxCost);
+        (context,) = paymaster.validatePaymasterUserOp(userOp, keccak256(abi.encode(account, maxCost)), maxCost);
     }
 }

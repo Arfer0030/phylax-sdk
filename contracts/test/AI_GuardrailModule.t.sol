@@ -52,6 +52,14 @@ contract AI_GuardrailModuleTest is Test {
         assertEq(guardrail.spentToday(), 5);
     }
 
+    /// @notice Verifies the controller can customize the rolling spend-window duration.
+    function test_setSpendWindowDuration_updatesRollingWindowLength() public {
+        vm.prank(controller);
+        guardrail.setSpendWindowDuration(7 days);
+
+        assertEq(guardrail.spendWindowDuration(), 7 days);
+    }
+
     /// @notice Verifies non-controller callers cannot validate transactions.
     function test_checkTransaction_revertsWhenCallerIsNotController() public {
         vm.expectRevert(AI_GuardrailModule.ControllerOnly.selector);

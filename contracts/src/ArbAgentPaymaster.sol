@@ -3,7 +3,9 @@ pragma solidity ^0.8.23;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {_packValidationData} from "@account-abstraction/contracts/core/Helpers.sol";
@@ -15,8 +17,15 @@ import {ArbAgentAccount} from "./ArbAgentAccount.sol";
 
 /// @title ArbAgentPaymaster
 /// @notice Sponsors ERC-4337 gas from EntryPoint deposit while settling usage against a per-owner ERC20 gas tank.
-contract ArbAgentPaymaster is IPaymaster, Ownable {
+contract ArbAgentPaymaster is IPaymaster, Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
+
+    /// @notice Reserved sponsorship state created during `validatePaymasterUserOp` and settled in `postOp`.
+    struct GasChargeReservation {
+        address owner;
+        address account;
+        uint256 reservedCharge;
+    }
 
     /// @notice Quote basis denominator used to express token-per-native exchange rates with 18 decimals precision.
     uint256 public constant QUOTE_DENOMINATOR = 1e18;
@@ -30,8 +39,14 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
 
     /// @notice Current gas tank balance held on behalf of each sponsoring owner.
     mapping(address => uint256) public gasTankBalance;
+    /// @notice Portion of each owner's gas tank currently reserved for validated but unsettled user operations.
+    mapping(address => uint256) public reservedGasTankBalance;
     /// @notice Mapping from sponsored smart account to the owner whose gas tank funds it.
     mapping(address => address) public sponsoredAccountOwner;
+    /// @notice Number of sponsored smart accounts currently draining from each owner's gas tank.
+    mapping(address => uint256) public sponsoredStreamCount;
+    /// @notice Reservations keyed by canonical user operation hash until `postOp` settles them.
+    mapping(bytes32 => GasChargeReservation) public reservationByUserOpHash;
 
     /// @notice Exchange rate of billing tokens charged per 1 native token of gas cost, expressed with 1e18 precision.
     uint256 public tokenPerNativeToken;
@@ -60,18 +75,31 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
         uint256 totalCharge,
         uint256 remainingGasTankBalance
     );
+    /// @notice Emitted when a validated user operation reserves gas tank balance before execution settlement.
+    event GasChargeReserved(
+        address indexed owner,
+        address indexed account,
+        bytes32 indexed userOpHash,
+        uint256 reservedCharge,
+        uint256 totalReservedForOwner
+    );
     event CollectedFeesWithdrawn(
         address indexed receiver, uint256 gasFeeAmount, uint256 markupFeeAmount, uint256 remainingCollectedGasFees
     );
+    /// @notice Emitted when the paymaster is paused or unpaused for emergency response.
+    event SponsorshipPauseUpdated(bool isPaused);
 
     error InvalidEntryPoint();
     error InvalidBillingToken();
     error InvalidBillingConfig();
     error InvalidAccount();
     error InvalidReceiver();
+    error SenderNotEntryPoint();
     error AccountOwnerMismatch(address expectedOwner, address actualOwner);
     error AccountNotRegistered(address account);
     error InsufficientGasTankBalance(address owner, uint256 available, uint256 required);
+    error ReservationNotFound(bytes32 userOpHash);
+    error ReservedChargeTooLow(bytes32 userOpHash, uint256 reservedCharge, uint256 actualCharge);
     error InsufficientCollectedFees(uint256 requestedGasFees, uint256 requestedMarkupFees);
 
     /// @notice Creates a paymaster that sponsors gas from EntryPoint deposit and settles usage in an ERC20 billing token.
@@ -102,8 +130,21 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
         emit BillingConfigUpdated(newTokenPerNativeToken, newMarkupBps);
     }
 
+    /// @notice Pauses new sponsorship validations and gas tank deposits during emergency response.
+    function pause() external onlyOwner {
+        _pause();
+        emit SponsorshipPauseUpdated(true);
+    }
+
+    /// @notice Unpauses sponsorship validations and gas tank deposits after emergency response concludes.
+    function unpause() external onlyOwner {
+        _unpause();
+        emit SponsorshipPauseUpdated(false);
+    }
+
     /// @notice Deposits billing tokens into the caller's gas tank balance.
-    function topUpGasTank(uint256 amount) external {
+    /// @param amount The billing-token amount to transfer into the caller's centralized gas tank.
+    function topUpGasTank(uint256 amount) external nonReentrant whenNotPaused {
         billingToken.safeTransferFrom(msg.sender, address(this), amount);
         gasTankBalance[msg.sender] += amount;
 
@@ -111,19 +152,22 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
     }
 
     /// @notice Withdraws unused billing tokens from the caller's gas tank balance.
-    function withdrawGasTank(address receiver, uint256 amount) external {
+    /// @param receiver The destination wallet receiving the withdrawn billing tokens.
+    /// @param amount The billing-token amount to withdraw from the caller's available gas tank balance.
+    function withdrawGasTank(address receiver, uint256 amount) external nonReentrant {
         if (receiver == address(0)) revert InvalidReceiver();
 
-        uint256 available = gasTankBalance[msg.sender];
+        uint256 available = availableGasTankBalance(msg.sender);
         if (available < amount) revert InsufficientGasTankBalance(msg.sender, available, amount);
 
-        gasTankBalance[msg.sender] = available - amount;
+        gasTankBalance[msg.sender] -= amount;
         billingToken.safeTransfer(receiver, amount);
 
         emit GasTankWithdrawn(msg.sender, receiver, amount, gasTankBalance[msg.sender]);
     }
 
     /// @notice Registers a Phylax smart account to draw sponsorship from the caller's gas tank.
+    /// @param account The smart account that should consume sponsorship from the caller's gas tank.
     function registerSponsoredAccount(address account) external {
         if (account == address(0)) revert InvalidAccount();
 
@@ -131,16 +175,24 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
         if (actualOwner != msg.sender) revert AccountOwnerMismatch(msg.sender, actualOwner);
 
         address previousOwner = sponsoredAccountOwner[account];
+        if (previousOwner != address(0) && previousOwner != msg.sender) {
+            sponsoredStreamCount[previousOwner] -= 1;
+        }
+        if (previousOwner == address(0) || previousOwner != msg.sender) {
+            sponsoredStreamCount[msg.sender] += 1;
+        }
         sponsoredAccountOwner[account] = msg.sender;
 
         emit SponsoredAccountRegistered(account, previousOwner, msg.sender);
     }
 
     /// @notice Removes an account-to-owner sponsorship mapping when the caller no longer wants to sponsor it.
+    /// @param account The smart account to remove from the caller's gas tank sponsorship set.
     function removeSponsoredAccount(address account) external {
         if (sponsoredAccountOwner[account] != msg.sender) revert AccountNotRegistered(account);
 
         delete sponsoredAccountOwner[account];
+        sponsoredStreamCount[msg.sender] -= 1;
         emit SponsoredAccountRemoved(account, msg.sender);
     }
 
@@ -148,7 +200,11 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
     /// @param receiver The destination address receiving withdrawn billing tokens.
     /// @param gasFeeAmount The amount of recovered base gas fees to withdraw.
     /// @param markupFeeAmount The amount of markup fees to withdraw.
-    function withdrawCollectedFees(address receiver, uint256 gasFeeAmount, uint256 markupFeeAmount) external onlyOwner {
+    function withdrawCollectedFees(address receiver, uint256 gasFeeAmount, uint256 markupFeeAmount)
+        external
+        onlyOwner
+        nonReentrant
+    {
         if (receiver == address(0)) revert InvalidReceiver();
         if (gasFeeAmount > collectedGasFees || markupFeeAmount > collectedMarkupFees) {
             revert InsufficientCollectedFees(gasFeeAmount, markupFeeAmount);
@@ -178,12 +234,13 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
 
     /// @notice Validates whether the paymaster will sponsor a user operation and returns postOp context.
     /// @param userOp The packed ERC-4337 user operation requesting sponsorship.
+    /// @param userOpHash The canonical user operation hash used to reserve gas tank balance until settlement.
     /// @param maxCost The maximum native-token gas cost that could be charged for the operation.
     /// @return context Encoded owner/account context forwarded into `postOp`.
     /// @return validationData Packed validation metadata for the EntryPoint.
-    function validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32, uint256 maxCost)
+    function validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 maxCost)
         external
-        view
+        whenNotPaused
         returns (bytes memory context, uint256 validationData)
     {
         _requireFromEntryPoint();
@@ -192,12 +249,20 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
         if (gasTankOwner == address(0)) revert AccountNotRegistered(userOp.sender);
 
         (,, uint256 requiredCharge) = previewCharge(maxCost);
-        uint256 available = gasTankBalance[gasTankOwner];
+        uint256 available = availableGasTankBalance(gasTankOwner);
         if (available < requiredCharge) {
             revert InsufficientGasTankBalance(gasTankOwner, available, requiredCharge);
         }
 
-        context = abi.encode(gasTankOwner, userOp.sender);
+        reservedGasTankBalance[gasTankOwner] += requiredCharge;
+        reservationByUserOpHash[userOpHash] =
+            GasChargeReservation({owner: gasTankOwner, account: userOp.sender, reservedCharge: requiredCharge});
+
+        emit GasChargeReserved(
+            gasTankOwner, userOp.sender, userOpHash, requiredCharge, reservedGasTankBalance[gasTankOwner]
+        );
+
+        context = abi.encode(gasTankOwner, userOp.sender, userOpHash, requiredCharge);
         validationData = _packValidationData(false, 0, 0);
     }
 
@@ -215,13 +280,23 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
         (mode, actualUserOpFeePerGas);
         _requireFromEntryPoint();
 
-        (address gasTankOwner, address account) = abi.decode(context, (address, address));
+        (address gasTankOwner, address account, bytes32 userOpHash, uint256 reservedCharge) =
+            abi.decode(context, (address, address, bytes32, uint256));
+        GasChargeReservation memory reservation = reservationByUserOpHash[userOpHash];
+        if (reservation.owner == address(0)) revert ReservationNotFound(userOpHash);
+
         (uint256 baseCharge, uint256 markupCharge, uint256 totalCharge) = previewCharge(actualGasCost);
+        if (totalCharge > reservedCharge || totalCharge > reservation.reservedCharge) {
+            revert ReservedChargeTooLow(userOpHash, reservation.reservedCharge, totalCharge);
+        }
 
-        uint256 available = gasTankBalance[gasTankOwner];
-        if (available < totalCharge) revert InsufficientGasTankBalance(gasTankOwner, available, totalCharge);
+        reservedGasTankBalance[gasTankOwner] -= reservation.reservedCharge;
+        delete reservationByUserOpHash[userOpHash];
 
-        gasTankBalance[gasTankOwner] = available - totalCharge;
+        uint256 balance = gasTankBalance[gasTankOwner];
+        if (balance < totalCharge) revert InsufficientGasTankBalance(gasTankOwner, balance, totalCharge);
+
+        gasTankBalance[gasTankOwner] = balance - totalCharge;
         collectedGasFees += baseCharge;
         collectedMarkupFees += markupCharge;
 
@@ -252,6 +327,13 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
         return entryPoint.balanceOf(address(this));
     }
 
+    /// @notice Returns the currently withdrawable gas tank balance after excluding unsettled reservations.
+    /// @param owner The owner whose gas tank availability should be queried.
+    /// @return availableBalance The gas tank amount that is currently free to withdraw.
+    function availableGasTankBalance(address owner) public view returns (uint256 availableBalance) {
+        return gasTankBalance[owner] - reservedGasTankBalance[owner];
+    }
+
     /// @notice Unlocks the paymaster stake in the EntryPoint so it can later be withdrawn.
     function unlockStake() external onlyOwner {
         entryPoint.unlockStake();
@@ -265,6 +347,6 @@ contract ArbAgentPaymaster is IPaymaster, Ownable {
 
     /// @notice Ensures the caller is the configured EntryPoint.
     function _requireFromEntryPoint() internal view {
-        require(msg.sender == address(entryPoint), "Sender not EntryPoint");
+        if (msg.sender != address(entryPoint)) revert SenderNotEntryPoint();
     }
 }

@@ -5,9 +5,11 @@
     "dev": "pnpm -r --parallel --filter @phylax/web --filter @phylax/agent-backend run dev",
     "dev:web": "pnpm --filter @phylax/web run dev",
     "dev:backend": "pnpm --filter @phylax/agent-backend run dev",
-    "build": "pnpm -r --filter @phylax/web --filter @phylax/agent-backend run build",
+    "build": "pnpm -r --filter @phylax/sdk --filter @phylax/web --filter @phylax/agent-backend run build",
+    "build:sdk": "pnpm --filter @phylax/sdk run build",
     "build:web": "pnpm --filter @phylax/web run build",
     "build:backend": "pnpm --filter @phylax/agent-backend run build",
-    "lint": "pnpm -r --filter @phylax/web --filter @phylax/agent-backend run lint"
+    "lint": "pnpm -r --filter @phylax/sdk --filter @phylax/web --filter @phylax/agent-backend run lint",
+    "lint:sdk": "pnpm --filter @phylax/sdk run lint"
   }
 }

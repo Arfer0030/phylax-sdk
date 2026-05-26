@@ -1,6 +1,7 @@
 packages:
   - web
   - agent-backend
+  - packages/*
 allowBuilds:
   '@google/genai': true
   bufferutil: false

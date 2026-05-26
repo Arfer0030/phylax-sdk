@@ -1,17 +1,29 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import AppChrome from "@/components/AppChrome";
 import "./globals.css";
 
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans-fallback",
+});
+
 export const metadata: Metadata = {
-  title: "Phylax SDK",
-  description: "The Immutable Guardian for AI Agents",
+  title: "Phylax - The Immutable Guardian for Autonomous AI Agents",
+  description:
+    "Deploy secure ERC-4337 accounts on Arbitrum with on-chain guardrails, temporary session keys, and centralized gas tanks for autonomous AI agents.",
+  icons: {
+    icon: "/images/logo.png",
+    shortcut: "/images/logo.png",
+    apple: "/images/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>
+      <body className={plusJakartaSans.variable}>
         <AppChrome>{children}</AppChrome>
       </body>
     </html>

@@ -1,5 +1,5 @@
-import ControlPanel from "@/components/ControlPanel";
+import OwnerDashboard from "@/components/OwnerDashboard";
 
 export default function DashboardPage() {
-  return <ControlPanel />;
+  return <OwnerDashboard />;
 }

@@ -6,13 +6,21 @@ import { useState } from "react";
 type TopUpGasModalProps = {
   open: boolean;
   onClose: () => void;
+  disabled?: boolean;
+  onSubmit: (amount: string) => Promise<void>;
 };
 
 type FlowStep = "form" | "processing";
 
-export default function TopUpGasModal({ open, onClose }: TopUpGasModalProps) {
+export default function TopUpGasModal({
+  open,
+  onClose,
+  disabled = false,
+  onSubmit,
+}: TopUpGasModalProps) {
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<FlowStep>("form");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!open) {
     return null;
@@ -20,22 +28,29 @@ export default function TopUpGasModal({ open, onClose }: TopUpGasModalProps) {
 
   const canSubmit = amount.trim().length > 0;
 
-  const handleSubmit = () => {
-    if (!canSubmit) {
+  const handleSubmit = async () => {
+    if (!canSubmit || disabled) {
       return;
     }
 
+    setErrorMessage(null);
     setStep("processing");
-    window.setTimeout(() => {
+
+    try {
+      await onSubmit(amount);
       setStep("form");
       setAmount("");
       onClose();
-    }, 1400);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to top up gas tank.");
+      setStep("form");
+    }
   };
 
   const handleClose = () => {
     setStep("form");
     setAmount("");
+    setErrorMessage(null);
     onClose();
   };
 
@@ -86,10 +101,14 @@ export default function TopUpGasModal({ open, onClose }: TopUpGasModalProps) {
               ))}
             </div>
 
+            {errorMessage && (
+              <p className="text-sm text-red-300">{errorMessage}</p>
+            )}
+
             <div className="flex justify-end">
               <button
-                onClick={handleSubmit}
-                disabled={!canSubmit}
+                onClick={() => void handleSubmit()}
+                disabled={!canSubmit || disabled}
                 className="inline-flex items-center gap-2 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
               >
                 Submit & Sign

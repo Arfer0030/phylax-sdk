@@ -14,7 +14,7 @@ import type {
 import type { PhylaxPublicClient } from "../clients/index.js";
 
 function getSessionStatus(sessionSigner: Address, sessionExpiry: bigint): GuardedAccountSessionStatus {
-  if (sessionSigner === zeroAddress || sessionExpiry === 0n) {
+  if (sessionSigner === zeroAddress || sessionExpiry === BigInt(0)) {
     return "unconfigured";
   }
 
@@ -72,7 +72,7 @@ export async function readGuardedAccountState(
     spendWindowDuration: spendWindowDurationValue,
     maxDailyLimit,
     spentInWindow,
-    effectiveSpentInWindow: status === "expired" ? 0n : spentInWindow,
+    effectiveSpentInWindow: status === "expired" ? BigInt(0) : spentInWindow,
     whitelist: whitelist.map((target) => ({
       name: target.name,
       address: target.target,
@@ -163,7 +163,7 @@ export async function readExecutionActivityLogs(
 
   return logs.map((log) => ({
     account: accountAddress,
-    blockNumber: log.blockNumber ?? 0n,
+    blockNumber: log.blockNumber ?? BigInt(0),
     transactionHash: log.transactionHash,
     logIndex: log.logIndex,
     target: log.args.target!,
@@ -205,7 +205,7 @@ export async function readGasSettlementLogs(
   return logs.map((log) => ({
     owner: log.args.owner!,
     account: log.args.account!,
-    blockNumber: log.blockNumber ?? 0n,
+    blockNumber: log.blockNumber ?? BigInt(0),
     transactionHash: log.transactionHash,
     logIndex: log.logIndex,
     actualGasCost: log.args.actualGasCost!,

@@ -1,30 +1,29 @@
 "use client";
 
 import { Copy, Plus, Trash2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 type ProvisionAgentModalProps = {
   open: boolean;
   onClose: () => void;
+  disabled?: boolean;
+  onSubmit: (input: {
+    agentName: string;
+    dailyLimit: string;
+    durationValue: string;
+    durationUnit: "D" | "W" | "M";
+    whitelist: { name: string; address: `0x${string}` }[];
+  }) => Promise<{ sessionPrivateKey: `0x${string}` }>;
 };
 
 type FlowStep = "form" | "processing" | "revealed";
 type DraftWhitelistTarget = { name: string; address: string };
 
-function generateSessionKey() {
-  const chars = "abcdef0123456789";
-  let value = "0x";
-
-  for (let index = 0; index < 64; index += 1) {
-    value += chars[Math.floor(Math.random() * chars.length)];
-  }
-
-  return value;
-}
-
 export default function ProvisionAgentModal({
   open,
   onClose,
+  disabled = false,
+  onSubmit,
 }: ProvisionAgentModalProps) {
   const [step, setStep] = useState<FlowStep>("form");
   const [agentName, setAgentName] = useState("");
@@ -35,21 +34,37 @@ export default function ProvisionAgentModal({
     { name: "", address: "" },
   ]);
   const [copiedSessionKey, setCopiedSessionKey] = useState(false);
-  const sessionKey = useMemo(() => generateSessionKey(), []);
+  const [sessionKey, setSessionKey] = useState<`0x${string}` | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!open) {
     return null;
   }
 
-  const handleSubmit = () => {
-    if (!canSubmit) {
+  const handleSubmit = async () => {
+    if (!canSubmit || disabled) {
       return;
     }
 
+    setErrorMessage(null);
+    setCopiedSessionKey(false);
     setStep("processing");
-    window.setTimeout(() => {
+
+    try {
+      const result = await onSubmit({
+        agentName,
+        dailyLimit,
+        durationValue,
+        durationUnit: durationUnit as "D" | "W" | "M",
+        whitelist: whitelistTargets as { name: string; address: `0x${string}` }[],
+      });
+
+      setSessionKey(result.sessionPrivateKey);
       setStep("revealed");
-    }, 1400);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed to provision agent.");
+      setStep("form");
+    }
   };
 
   const handleClose = () => {
@@ -60,6 +75,8 @@ export default function ProvisionAgentModal({
     setDurationUnit("D");
     setWhitelistTargets([{ name: "", address: "" }]);
     setCopiedSessionKey(false);
+    setSessionKey(null);
+    setErrorMessage(null);
     onClose();
   };
 
@@ -94,6 +111,10 @@ export default function ProvisionAgentModal({
     );
 
   const handleCopySessionKey = async () => {
+    if (!sessionKey) {
+      return;
+    }
+
     try {
       await navigator.clipboard.writeText(sessionKey);
       setCopiedSessionKey(true);
@@ -188,7 +209,7 @@ export default function ProvisionAgentModal({
               </div>
 
               <div className="space-y-3">
-                {whitelistTargets.map((target, index) => (
+              {whitelistTargets.map((target, index) => (
                   <div key={`whitelist-${index}`} className="grid gap-3 sm:grid-cols-[0.7fr_1.3fr_auto]">
                     <input
                       value={target.name}
@@ -218,10 +239,14 @@ export default function ProvisionAgentModal({
               </div>
             </div>
 
+            {errorMessage && (
+              <p className="text-sm text-red-300">{errorMessage}</p>
+            )}
+
             <div className="flex justify-end">
               <button
-                onClick={handleSubmit}
-                disabled={!canSubmit}
+                onClick={() => void handleSubmit()}
+                disabled={!canSubmit || disabled}
                 className="inline-flex items-center gap-2 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
               >
                 Submit & Sign
@@ -244,7 +269,7 @@ export default function ProvisionAgentModal({
           </div>
         )}
 
-        {step === "revealed" && (
+        {step === "revealed" && sessionKey && (
           <div className="mt-8 space-y-5">
             <div className="border border-white/10 bg-[#111111] p-5">
               <p className="phx-label">One-time reveal</p>

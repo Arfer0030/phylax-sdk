@@ -26,7 +26,7 @@ export function encodeExecuteCall(params: {
   return encodeFunctionData({
     abi: arbAgentAccountAbi,
     functionName: "execute",
-    args: [params.target, params.value ?? 0n, params.data, params.spendAmount],
+    args: [params.target, params.value ?? BigInt(0), params.data, params.spendAmount],
   });
 }
 
@@ -36,7 +36,7 @@ export function encodeExecuteWithMetadataCall(params: ExecuteWithMetadataParams)
     functionName: "executeWithMetadata",
     args: [
       params.target,
-      params.value ?? 0n,
+      params.value ?? BigInt(0),
       params.data,
       params.spendAmount,
       params.action,

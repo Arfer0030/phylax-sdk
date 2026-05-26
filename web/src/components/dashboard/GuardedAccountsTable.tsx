@@ -8,6 +8,8 @@ import type { GuardedAccount, WhitelistTarget } from "./dashboard-data";
 type GuardedAccountsTableProps = {
   accounts: GuardedAccount[];
   onProvisionAgent: () => void;
+  actionsDisabled?: boolean;
+  onEmergencyRevoke: (accountAddress: `0x${string}`) => Promise<void>;
 };
 
 type WhitelistModalProps = {
@@ -143,6 +145,8 @@ function WhitelistDetailsModal({
 export default function GuardedAccountsTable({
   accounts,
   onProvisionAgent,
+  actionsDisabled = false,
+  onEmergencyRevoke,
 }: GuardedAccountsTableProps) {
   const [selectedWhitelist, setSelectedWhitelist] = useState<GuardedAccount | null>(null);
   const [selectedRevoke, setSelectedRevoke] = useState<GuardedAccount | null>(null);
@@ -175,7 +179,8 @@ export default function GuardedAccountsTable({
 
           <button
             onClick={onProvisionAgent}
-            className="inline-flex items-center gap-2 border border-white px-4 py-3 text-sm font-medium text-white transition hover:bg-white hover:text-black"
+            disabled={actionsDisabled}
+            className="inline-flex items-center gap-2 border border-white px-4 py-3 text-sm font-medium text-white transition hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:border-white/10 disabled:text-zinc-500 disabled:hover:bg-transparent disabled:hover:text-zinc-500"
           >
             <Plus className="h-4 w-4" />
             Provision New Agent
@@ -252,6 +257,7 @@ export default function GuardedAccountsTable({
                       ) : (
                         <button
                           onClick={() => setSelectedRevoke(account)}
+                          disabled={actionsDisabled}
                           className="border border-white/16 px-4 py-2 font-[family:var(--font-mono)] text-[12px] uppercase tracking-[0.2em] text-zinc-300 transition hover:border-red-500 hover:bg-red-500 hover:text-white"
                         >
                           Kill-Switch
@@ -277,6 +283,7 @@ export default function GuardedAccountsTable({
       {selectedRevoke && (
         <EmergencyRevokeModal
           account={selectedRevoke}
+          onConfirm={onEmergencyRevoke}
           onClose={() => setSelectedRevoke(null)}
         />
       )}

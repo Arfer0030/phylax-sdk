@@ -7,20 +7,29 @@ import type { GuardedAccount } from "./dashboard-data";
 type EmergencyRevokeModalProps = {
   account: GuardedAccount;
   onClose: () => void;
+  onConfirm: (accountAddress: `0x${string}`) => Promise<void>;
 };
 
 export default function EmergencyRevokeModal({
   account,
   onClose,
+  onConfirm,
 }: EmergencyRevokeModalProps) {
   const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setSubmitting(true);
-    window.setTimeout(() => {
+    setErrorMessage(null);
+
+    try {
+      await onConfirm(account.address as `0x${string}`);
       setSubmitting(false);
       onClose();
-    }, 1400);
+    } catch (error) {
+      setSubmitting(false);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to revoke session key.");
+    }
   };
 
   return (
@@ -73,6 +82,8 @@ export default function EmergencyRevokeModal({
           wallet.
         </p>
 
+        {errorMessage && <p className="mt-4 text-sm text-red-300">{errorMessage}</p>}
+
         <div className="mt-8 flex justify-end gap-3">
           <button
             onClick={onClose}
@@ -81,7 +92,7 @@ export default function EmergencyRevokeModal({
             Cancel
           </button>
           <button
-            onClick={handleConfirm}
+            onClick={() => void handleConfirm()}
             disabled={submitting}
             className="bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-red-500 hover:text-white disabled:cursor-wait disabled:bg-zinc-300 disabled:text-black"
           >

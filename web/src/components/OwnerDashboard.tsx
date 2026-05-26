@@ -8,26 +8,53 @@ import DashboardStatsGrid from "./dashboard/DashboardStatsGrid";
 import GasTankWorkspace from "./dashboard/GasTankWorkspace";
 import GuardedAccountsTable from "./dashboard/GuardedAccountsTable";
 import ProvisionAgentModal from "./dashboard/ProvisionAgentModal";
+import { usePhylaxOwnerDashboard } from "./dashboard/usePhylaxOwnerDashboard";
 import {
-  activityLogs,
   dashboardNavItems,
   type DashboardViewId,
-  guardedAccounts,
 } from "./dashboard/dashboard-data";
 
 function DashboardPanel({
   activeView,
   onProvisionAgent,
-  activeAgentCount,
-  totalActiveDailyLimit,
+  stats,
+  accounts,
+  activityLogs,
+  gasTankEntries,
+  gasConsumptionHistory,
+  actionsDisabled,
+  onEmergencyRevoke,
+  onTopUpGas,
+  onClaimTestnetUsdc,
 }: {
   activeView: DashboardViewId;
   onProvisionAgent: () => void;
-  activeAgentCount: number;
-  totalActiveDailyLimit: number;
+  stats: {
+    id: string;
+    label: string;
+    value: string;
+    helper: string;
+  }[];
+  accounts: import("./dashboard/dashboard-data").GuardedAccount[];
+  activityLogs: import("./dashboard/dashboard-data").ActivityLog[];
+  gasTankEntries: import("./dashboard/dashboard-data").GasTankEntry[];
+  gasConsumptionHistory: import("./dashboard/dashboard-data").GasConsumptionLog[];
+  actionsDisabled: boolean;
+  onEmergencyRevoke: (accountAddress: `0x${string}`) => Promise<void>;
+  onTopUpGas: (amount: string) => Promise<void>;
+  onClaimTestnetUsdc: () => Promise<void>;
 }) {
   if (activeView === "gas-tank") {
-    return <GasTankWorkspace />;
+    return (
+      <GasTankWorkspace
+        entries={gasTankEntries}
+        gasBalance={stats[0]?.value ?? "0.00 USDC"}
+        gasConsumptionHistory={gasConsumptionHistory}
+        actionsDisabled={actionsDisabled}
+        onTopUpGas={onTopUpGas}
+        onClaimTestnetUsdc={onClaimTestnetUsdc}
+      />
+    );
   }
 
   if (activeView === "activity-logs") {
@@ -36,27 +63,13 @@ function DashboardPanel({
 
   return (
     <div className="space-y-8">
-      {activeView === "overview" && (
-        <DashboardStatsGrid
-          stats={[
-            { id: "gas-balance", label: "Gas Tank Balance", value: "45.20 USDC", helper: "" },
-            {
-              id: "agents",
-              label: "Active Agents",
-              value: `${activeAgentCount} Accounts`,
-              helper: "",
-            },
-            {
-              id: "limits",
-              label: "Total Daily Limits",
-              value: `${totalActiveDailyLimit.toFixed(2)} USDC`,
-              helper: "",
-            },
-            { id: "anomalies", label: "Blocked Anomalies", value: "2 Reverted", helper: "" },
-          ]}
-        />
-      )}
-      <GuardedAccountsTable accounts={guardedAccounts} onProvisionAgent={onProvisionAgent} />
+      {activeView === "overview" && <DashboardStatsGrid stats={stats} />}
+      <GuardedAccountsTable
+        accounts={accounts}
+        onProvisionAgent={onProvisionAgent}
+        actionsDisabled={actionsDisabled}
+        onEmergencyRevoke={onEmergencyRevoke}
+      />
     </div>
   );
 }
@@ -64,12 +77,22 @@ function DashboardPanel({
 export default function OwnerDashboard() {
   const [activeView, setActiveView] = useState<DashboardViewId>("overview");
   const [provisionOpen, setProvisionOpen] = useState(false);
-  const activeAccounts = guardedAccounts.filter((account) => account.status === "Active");
-  const activeAgentCount = activeAccounts.length;
-  const totalActiveDailyLimit = activeAccounts.reduce(
-    (total, account) => total + account.dailyLimit,
-    0,
-  );
+  const {
+    hasSdkConfig,
+    isConnected,
+    isCorrectChain,
+    canWriteLive,
+    stats,
+    accounts,
+    activityLogs,
+    gasTankEntries,
+    gasConsumptionHistory,
+    provisionNewAgent,
+    emergencyRevoke,
+    claimFaucet,
+    submitTopUpGas,
+  } = usePhylaxOwnerDashboard();
+  const actionsDisabled = !canWriteLive;
 
   return (
     <>
@@ -84,15 +107,43 @@ export default function OwnerDashboard() {
           <DashboardPanel
             activeView={activeView}
             onProvisionAgent={() => setProvisionOpen(true)}
-            activeAgentCount={activeAgentCount}
-            totalActiveDailyLimit={totalActiveDailyLimit}
+            stats={stats}
+            accounts={accounts}
+            activityLogs={activityLogs}
+            gasTankEntries={gasTankEntries}
+            gasConsumptionHistory={gasConsumptionHistory}
+            actionsDisabled={actionsDisabled}
+            onEmergencyRevoke={emergencyRevoke}
+            onTopUpGas={submitTopUpGas}
+            onClaimTestnetUsdc={claimFaucet}
           />
         </div>
 
         <LandingFooter />
       </div>
 
-      <ProvisionAgentModal open={provisionOpen} onClose={() => setProvisionOpen(false)} />
+      <ProvisionAgentModal
+        open={provisionOpen}
+        onClose={() => setProvisionOpen(false)}
+        disabled={actionsDisabled}
+        onSubmit={provisionNewAgent}
+      />
+
+      {!hasSdkConfig && (
+        <p className="mx-auto mt-6 w-full max-w-7xl text-sm text-zinc-500">
+          Dashboard is running in mock preview mode. Add Phylax contract addresses to
+          <span className="mx-1 font-[family:var(--font-mono)] text-zinc-300">
+            web/.env.local
+          </span>
+          to enable live owner flows.
+        </p>
+      )}
+
+      {hasSdkConfig && isConnected && !isCorrectChain && (
+        <p className="mx-auto mt-6 w-full max-w-7xl text-sm text-amber-200/80">
+          Switch your wallet to Arbitrum Sepolia to enable live Phylax owner actions.
+        </p>
+      )}
     </>
   );
 }

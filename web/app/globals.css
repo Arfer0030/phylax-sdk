@@ -8,5 +8,33 @@ body {
   min-height: 100vh;
   background: #0a0b0f;
   color: #e5e7eb;
-  font-family: "Roobert", "Roobert TRIAL", "Roobert PRO", var(--font-sans-fallback), "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-sans), "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@layer components {
+  .phx-display {
+    @apply font-extrabold tracking-[-0.06em] text-white;
+  }
+
+  .phx-body {
+    @apply font-normal leading-relaxed text-zinc-400;
+  }
+
+  .phx-eyebrow {
+    font-family: var(--font-mono), "SFMono-Regular", Consolas, monospace;
+    @apply inline-flex items-center gap-4 text-[11px] font-medium uppercase tracking-[0.24em] text-cyan-200/85;
+  }
+
+  .phx-label {
+    font-family: var(--font-mono), "SFMono-Regular", Consolas, monospace;
+    @apply text-[11px] font-medium uppercase tracking-[0.22em] text-zinc-500;
+  }
+
+  .phx-badge {
+    font-family: var(--font-mono), "SFMono-Regular", Consolas, monospace;
+    @apply text-[10px] font-medium uppercase tracking-[0.2em];
+  }
 }

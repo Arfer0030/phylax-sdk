@@ -25,8 +25,8 @@ export default function AppChrome({ children }: AppChromeProps) {
             <Image
               src="/images/logo.png"
               alt="Phylax logo"
-              width={70}
-              height={70}
+              width={65}
+              height={65}
               className="h-[3.25rem] w-[3.25rem] object-contain"
             />
             <span>PHYLAX</span>

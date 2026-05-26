@@ -26,7 +26,7 @@ export default function SponsorsSection() {
 
           <div className="space-y-12">
             <div className="space-y-6">
-              <p className="text-sm text-zinc-500">Collaborator</p>
+              <p className="phx-label">Collaborator</p>
               <div className="grid gap-6 md:grid-cols-2">
                 {sponsorGroups.collaborator.map((name, index) => (
                   <div
@@ -47,7 +47,7 @@ export default function SponsorsSection() {
             </div>
 
             <div className="space-y-6">
-              <p className="text-sm text-zinc-500">Infrastructure</p>
+              <p className="phx-label">Infrastructure</p>
               <div className="grid gap-6 md:grid-cols-2">
                 {sponsorGroups.infrastructure.map((name) => (
                   <div
@@ -61,7 +61,7 @@ export default function SponsorsSection() {
             </div>
 
             <div className="space-y-6">
-              <p className="text-sm text-zinc-500">Ecosystem</p>
+              <p className="phx-label">Ecosystem</p>
               <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {sponsorGroups.ecosystem.map((name, index) => (
                   <div

@@ -22,11 +22,9 @@ export default function LandingFooter({
               height={68}
               className="h-[4.25rem] w-[4.25rem] object-contain"
             />
-            <h2 className="text-5xl font-semibold leading-[0.96] tracking-[-0.06em] text-white">
-              Phylax
-            </h2>
+            <h2 className="phx-display text-5xl leading-[0.96]">Phylax</h2>
           </div>
-          <p className="max-w-sm text-lg leading-8 text-zinc-400">
+          <p className="phx-body max-w-sm text-lg leading-8">
             The immutable guardian for autonomous AI agents.
           </p>
           <button
@@ -103,7 +101,7 @@ export default function LandingFooter({
       </div>
 
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-8 text-base text-zinc-500 sm:px-10 lg:px-12">
-        <span>© 2026 Phylax. All rights reserved.</span>
+        <span>&copy; 2026 Phylax. All rights reserved.</span>
         <span>Built for bounded AI safety on Arbitrum.</span>
       </div>
     </footer>

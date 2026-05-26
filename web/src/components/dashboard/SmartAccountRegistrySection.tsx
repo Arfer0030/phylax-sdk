@@ -14,10 +14,8 @@ export default function SmartAccountRegistrySection() {
     <div className="border border-white/10 bg-[#09090b] p-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-            Smart account registry
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-white">
+          <p className="phx-label">Smart account registry</p>
+          <h2 className="phx-display mt-2 text-2xl">
             Provision one account per AI role
           </h2>
         </div>
@@ -58,28 +56,22 @@ export default function SmartAccountRegistrySection() {
         <div className="border border-white/8 bg-white/[0.03] p-5">
           <div className="flex items-start justify-between gap-4 border-b border-white/8 pb-4">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-                Selected account
-              </p>
+              <p className="phx-label">Selected account</p>
               <h3 className="mt-2 text-lg font-medium text-white">{selectedAccount.label}</h3>
-              <p className="mt-1 text-sm text-zinc-400">{selectedAccount.strategy}</p>
+              <p className="phx-body mt-1 text-sm">{selectedAccount.strategy}</p>
             </div>
-            <span className="border border-white/10 px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-zinc-300">
+            <span className="phx-badge border border-white/10 px-2 py-1 text-zinc-300">
               {selectedAccount.sessionStatus}
             </span>
           </div>
 
           <div className="grid gap-4 pt-4 sm:grid-cols-2">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-                Gas tank attached
-              </p>
+              <p className="phx-label">Gas tank attached</p>
               <p className="mt-2 text-xl font-semibold text-white">{selectedAccount.gasTank}</p>
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-                Session status
-              </p>
+              <p className="phx-label">Session status</p>
               <p className="mt-2 text-xl font-semibold text-white">
                 {selectedAccount.sessionExpiry}
               </p>
@@ -87,9 +79,7 @@ export default function SmartAccountRegistrySection() {
           </div>
 
           <div className="mt-5">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-              Guardrail envelope
-            </p>
+            <p className="phx-label">Guardrail envelope</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {selectedAccount.policies.map((policy) => (
                 <span

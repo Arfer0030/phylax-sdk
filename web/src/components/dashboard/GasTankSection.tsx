@@ -6,10 +6,8 @@ export default function GasTankSection() {
     <div className="border border-white/10 bg-[#09090b] p-5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-            Gas tank treasury
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.05em] text-white">
+          <p className="phx-label">Gas tank treasury</p>
+          <h2 className="phx-display mt-2 text-2xl">
             Sponsor gas without touching agent working capital
           </h2>
         </div>
@@ -24,7 +22,7 @@ export default function GasTankSection() {
           >
             <div>
               <p className="text-sm font-medium text-white">{event.label}</p>
-              <p className="mt-1 text-xs leading-5 text-zinc-400">{event.note}</p>
+              <p className="phx-body mt-1 text-xs leading-5">{event.note}</p>
             </div>
             <p className="text-sm font-medium text-cyan-200">{event.value}</p>
           </div>
@@ -37,9 +35,7 @@ export default function GasTankSection() {
             key={preset}
             className="border border-white/10 px-4 py-3 text-left text-sm text-white transition hover:border-cyan-400/40 hover:bg-cyan-400/5"
           >
-            <span className="block text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-              Quick top up
-            </span>
+            <span className="phx-label block">Quick top up</span>
             <span className="mt-2 block font-medium">{preset}</span>
           </button>
         ))}

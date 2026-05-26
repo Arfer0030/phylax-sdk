@@ -10,7 +10,7 @@ export default function CoreInfrastructureSection() {
         <div className="mt-10 grid gap-12 lg:grid-cols-[0.78fr_1.22fr]">
           <div />
           <div>
-            <h2 className="max-w-4xl text-5xl font-semibold leading-[0.96] tracking-[-0.06em] text-white sm:text-6xl lg:text-[4.75rem]">
+            <h2 className="phx-display max-w-4xl text-5xl leading-[0.96] sm:text-6xl lg:text-[4.75rem]">
               The core infrastructure for secure agentic execution
             </h2>
           </div>
@@ -20,10 +20,12 @@ export default function CoreInfrastructureSection() {
           {stackProducts.map((product) => (
             <div key={product.name} className="space-y-6">
               <div className="h-32 w-32 border-t-4 border-r-4 border-white/90" />
-              <h3 className="text-3xl font-semibold tracking-[-0.05em] text-white">
+              <h3 className="phx-display text-3xl tracking-[-0.05em]">
                 {product.name}
               </h3>
-              <p className="max-w-md text-lg leading-8 text-zinc-300">{product.description}</p>
+              <p className="phx-body max-w-md text-base sm:text-[17px]">
+                {product.description}
+              </p>
             </div>
           ))}
         </div>

@@ -1,12 +1,19 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import AppChrome from "@/components/AppChrome";
 import "./globals.css";
 
-const plusJakartaSans = Plus_Jakarta_Sans({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-sans-fallback",
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -23,7 +30,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={plusJakartaSans.variable}>
+      <body className={`${inter.variable} ${jetBrainsMono.variable}`}>
         <AppChrome>{children}</AppChrome>
       </body>
     </html>

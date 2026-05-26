@@ -1,3 +1,7 @@
 packages:
-  - dashboard
+  - web
   - agent-backend
+allowBuilds:
+  '@google/genai': true
+  esbuild: true
+  protobufjs: true

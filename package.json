@@ -2,12 +2,12 @@
   "name": "phylax-sdk",
   "private": true,
   "scripts": {
-    "dev": "pnpm -r --parallel --filter @phylax/dashboard --filter @phylax/agent-backend run dev",
-    "dev:dashboard": "pnpm --filter @phylax/dashboard run dev",
+    "dev": "pnpm -r --parallel --filter @phylax/web --filter @phylax/agent-backend run dev",
+    "dev:web": "pnpm --filter @phylax/web run dev",
     "dev:backend": "pnpm --filter @phylax/agent-backend run dev",
-    "build": "pnpm -r --filter @phylax/dashboard --filter @phylax/agent-backend run build",
-    "build:dashboard": "pnpm --filter @phylax/dashboard run build",
+    "build": "pnpm -r --filter @phylax/web --filter @phylax/agent-backend run build",
+    "build:web": "pnpm --filter @phylax/web run build",
     "build:backend": "pnpm --filter @phylax/agent-backend run build",
-    "lint": "pnpm -r --filter @phylax/dashboard --filter @phylax/agent-backend run lint"
+    "lint": "pnpm -r --filter @phylax/web --filter @phylax/agent-backend run lint"
   }
 }

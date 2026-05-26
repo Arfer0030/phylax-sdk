@@ -6,29 +6,30 @@ Monorepo scaffold awal untuk proyek `Phylax SDK` di Arbitrum Sepolia.
 
 ```text
 phylax-sdk/
-├─ contracts/
-│  ├─ src/
-│  ├─ test/
-│  └─ foundry.toml
-├─ agent-backend/
-│  ├─ src/
-│  │  ├─ phylax-sdk/
-│  │  ├─ mock-ai/
-│  │  └─ server.ts
-│  ├─ .env.example
-│  ├─ package.json
-│  └─ tsconfig.json
-├─ dashboard/
-│  ├─ src/
-│  │  ├─ components/
-│  │  └─ views/
-│  ├─ index.html
-│  ├─ package.json
-│  ├─ tsconfig.json
-│  └─ vite.config.ts
-├─ package.json
-├─ pnpm-workspace.yaml
-└─ README.md
+|-- contracts/
+|   |-- src/
+|   |-- test/
+|   `-- foundry.toml
+|-- agent-backend/
+|   |-- src/
+|   |   |-- phylax-sdk/
+|   |   |-- mock-ai/
+|   |   `-- server.ts
+|   |-- .env.example
+|   |-- package.json
+|   `-- tsconfig.json
+|-- web/
+|   |-- app/
+|   |-- src/
+|   |   |-- components/
+|   |   `-- views/
+|   |-- next-env.d.ts
+|   |-- next.config.ts
+|   |-- package.json
+|   `-- tsconfig.json
+|-- package.json
+|-- pnpm-workspace.yaml
+`-- README.md
 ```
 
 ## Workspace
@@ -42,13 +43,15 @@ pnpm install
 Command dasar:
 
 ```bash
-pnpm dev:dashboard
+pnpm dev:web
 pnpm dev:backend
 pnpm dev
 ```
 
 ## Catatan
 
-- `dashboard/` saat ini mempertahankan starter frontend yang sudah ada di repo agar struktur awal tetap bisa langsung dipakai.
-- `agent-backend/src/phylax-sdk`, `agent-backend/src/mock-ai`, `contracts/src`, `contracts/test`, dan `dashboard/src/views` masih berupa placeholder dengan `.gitkeep`.
-- Belum ada implementasi smart contract atau SDK baru yang ditambahkan; perubahan turn ini hanya merapikan struktur awal monorepo.
+- `web/` adalah package frontend utama. Di dalamnya nanti menampung landing page, docs, dan owner dashboard/app.
+- `web/` sekarang memakai `Next.js App Router` dan berjalan di port `3000` saat mode development.
+- `agent-backend/` tetap berdiri sendiri di root monorepo dan tidak digabung ke package `web/`.
+- `agent-backend/src/phylax-sdk`, `agent-backend/src/mock-ai`, `contracts/src`, `contracts/test`, dan `web/src/views` saat ini masih berupa placeholder dengan `.gitkeep`.
+- Belum ada implementasi smart contract atau SDK baru yang ditambahkan; struktur saat ini masih scaffold awal.

@@ -58,14 +58,10 @@ export default function PhylaxConnectButton() {
           <button
             type="button"
             onClick={openAccountModal}
-            className="inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/6 px-4 py-2 text-[12px] font-bold text-white transition hover:border-white/26 hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[12px] font-bold text-black transition hover:bg-zinc-200 shadow-sm cursor-pointer"
           >
-            <span className="h-2 w-2 rounded-full bg-cyan-300" />
             <span>{truncateLabel(account.displayName)}</span>
-            <span className="hidden text-[11px] text-zinc-400 sm:inline">
-              {chain.name}
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 text-zinc-300" />
+            <ChevronDown className="h-3.5 w-3.5 text-zinc-600" />
           </button>
         );
       }}

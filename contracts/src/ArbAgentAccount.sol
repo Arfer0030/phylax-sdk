@@ -12,9 +12,21 @@ import {AI_GuardrailModule} from "./AI_GuardrailModule.sol";
 /// @title ArbAgentAccount
 /// @notice Minimal ERC-4337 smart account that delegates UserOperation signing to a bounded AI session signer.
 contract ArbAgentAccount is BaseAccount {
+    /// @notice Input entry used during one-shot provisioning for both target and recipient allowlists.
+    struct PolicyAddressInput {
+        string name;
+        address addr;
+    }
+
     /// @notice Whitelist target metadata returned to frontends for human-readable protocol labels.
     struct WhitelistTargetMetadata {
         address target;
+        string name;
+    }
+
+    /// @notice Recipient metadata returned to frontends for human-readable payout labels.
+    struct WhitelistRecipientMetadata {
+        address recipient;
         string name;
     }
 
@@ -39,6 +51,10 @@ contract ArbAgentAccount is BaseAccount {
     mapping(address => string) public whitelistTargetName;
     address[] private whitelistTargets;
     mapping(address => uint256) private whitelistTargetIndexPlusOne;
+    /// @notice Human-readable labels assigned to each currently whitelisted ERC-20 recipient wallet.
+    mapping(address => string) public whitelistRecipientName;
+    address[] private whitelistRecipients;
+    mapping(address => uint256) private whitelistRecipientIndexPlusOne;
 
     /// @notice Emitted when a two-step ownership transfer is initiated.
     event MasterOwnershipTransferStarted(address indexed currentOwner, address indexed pendingOwner);
@@ -60,6 +76,8 @@ contract ArbAgentAccount is BaseAccount {
     event AgentNameUpdated(string newAgentName);
     /// @notice Emitted when a whitelist target label is added, updated, or removed.
     event WhitelistTargetMetadataUpdated(address indexed target, string targetName, bool isAllowed);
+    /// @notice Emitted when a recipient whitelist label is added, updated, or removed.
+    event WhitelistRecipientMetadataUpdated(address indexed recipient, string recipientName, bool isAllowed);
     /// @notice Emitted when an execution succeeds with user-supplied activity metadata for dashboard rendering.
     event ExecutionMetadataLogged(
         address indexed target, uint256 value, uint256 spendAmount, string action, string context, bool ownerBypass
@@ -75,7 +93,6 @@ contract ArbAgentAccount is BaseAccount {
     error FactoryBootstrapUnavailable();
     error InvalidAgentName();
     error InvalidWhitelistMetadata();
-    error MismatchedWhitelistMetadata();
 
     modifier onlyMasterOwner() {
         if (msg.sender != masterOwner) revert UnauthorizedCaller();
@@ -197,6 +214,26 @@ contract ArbAgentAccount is BaseAccount {
         _setProtocolWhitelist(target, targetName, isAllowed, true);
     }
 
+    /// @notice Adds or removes an ERC-20 transfer recipient wallet from the guardrail whitelist.
+    /// @param recipient The wallet address that may receive ERC-20 transfers from the smart account.
+    /// @param isAllowed Whether the recipient should be whitelisted.
+    function setRecipientWhitelist(address recipient, bool isAllowed) external onlyMasterOwner {
+        _disableFactoryBootstrap();
+        _setRecipientWhitelist(recipient, whitelistRecipientName[recipient], isAllowed, false);
+    }
+
+    /// @notice Adds or removes an ERC-20 transfer recipient wallet from the guardrail whitelist while managing its label.
+    /// @param recipient The wallet address that may receive ERC-20 transfers from the smart account.
+    /// @param recipientName The human-readable label shown in owner dashboards for this recipient wallet.
+    /// @param isAllowed Whether the recipient should be whitelisted.
+    function setRecipientWhitelist(address recipient, string calldata recipientName, bool isAllowed)
+        external
+        onlyMasterOwner
+    {
+        _disableFactoryBootstrap();
+        _setRecipientWhitelist(recipient, recipientName, isAllowed, true);
+    }
+
     /// @notice Updates the human-readable name attached to this guarded AI account.
     /// @param newAgentName The owner-defined display name used by frontends and dashboards.
     function setAgentName(string calldata newAgentName) external onlyMasterOwner {
@@ -215,22 +252,21 @@ contract ArbAgentAccount is BaseAccount {
     /// @param expiry The unix timestamp until which the delegated session remains valid.
     /// @param spendWindowDuration_ The rolling spend-window duration in seconds for the guardrail module.
     /// @param maxDailyLimit_ The initial cumulative spending cap for the agent.
-    /// @param whitelistTargetNames The human-readable labels attached to each whitelisted protocol target.
-    /// @param whitelistTargets_ The initial set of protocol targets allowed for the delegated AI session.
+    /// @param whitelistTargets_ The initial set of named protocol targets allowed for the delegated AI session.
+    /// @param whitelistRecipients_ The initial set of named ERC-20 recipient wallets allowed for the delegated AI session.
     function bootstrapInitialPolicy(
         string calldata agentName_,
         address signer,
         uint48 expiry,
         uint48 spendWindowDuration_,
         uint256 maxDailyLimit_,
-        string[] calldata whitelistTargetNames,
-        address[] calldata whitelistTargets_
+        PolicyAddressInput[] calldata whitelistTargets_,
+        PolicyAddressInput[] calldata whitelistRecipients_
     ) external {
         if (msg.sender != deploymentFactory || !factoryBootstrapEnabled) {
             revert FactoryBootstrapUnavailable();
         }
         if (signer == address(0)) revert InvalidSessionSigner();
-        if (whitelistTargetNames.length != whitelistTargets_.length) revert MismatchedWhitelistMetadata();
 
         AI_GuardrailModule module = _requireGuardrailModule();
         _setAgentName(agentName_);
@@ -241,7 +277,12 @@ contract ArbAgentAccount is BaseAccount {
 
         uint256 whitelistTargetsLength = whitelistTargets_.length;
         for (uint256 i; i < whitelistTargetsLength; ++i) {
-            _setProtocolWhitelist(whitelistTargets_[i], whitelistTargetNames[i], true, true);
+            _setProtocolWhitelist(whitelistTargets_[i].addr, whitelistTargets_[i].name, true, true);
+        }
+
+        uint256 whitelistRecipientsLength = whitelistRecipients_.length;
+        for (uint256 i; i < whitelistRecipientsLength; ++i) {
+            _setRecipientWhitelist(whitelistRecipients_[i].addr, whitelistRecipients_[i].name, true, true);
         }
 
         factoryBootstrapEnabled = false;
@@ -298,6 +339,18 @@ contract ArbAgentAccount is BaseAccount {
         for (uint256 i; i < whitelistTargetsLength; ++i) {
             address target = whitelistTargets[i];
             targets[i] = WhitelistTargetMetadata({target: target, name: whitelistTargetName[target]});
+        }
+    }
+
+    /// @notice Returns the currently whitelisted ERC-20 recipients along with their owner-defined labels.
+    /// @return recipients The active recipient whitelist metadata entries.
+    function getWhitelistRecipients() external view returns (WhitelistRecipientMetadata[] memory recipients) {
+        uint256 whitelistRecipientsLength = whitelistRecipients.length;
+        recipients = new WhitelistRecipientMetadata[](whitelistRecipientsLength);
+
+        for (uint256 i; i < whitelistRecipientsLength; ++i) {
+            address recipient = whitelistRecipients[i];
+            recipients[i] = WhitelistRecipientMetadata({recipient: recipient, name: whitelistRecipientName[recipient]});
         }
     }
 
@@ -447,6 +500,53 @@ contract ArbAgentAccount is BaseAccount {
         emit WhitelistTargetMetadataUpdated(target, "", false);
     }
 
+    /// @notice Applies or removes recipient metadata while keeping the guardrail module in sync.
+    /// @param recipient The wallet address that may receive ERC-20 transfers from the smart account.
+    /// @param recipientName The human-readable label attached to the recipient.
+    /// @param isAllowed Whether the recipient should remain on the whitelist.
+    /// @param shouldUpdateName Whether the provided label should overwrite the stored label.
+    function _setRecipientWhitelist(
+        address recipient,
+        string memory recipientName,
+        bool isAllowed,
+        bool shouldUpdateName
+    ) internal {
+        AI_GuardrailModule module = _requireGuardrailModule();
+        module.setRecipientWhitelist(recipient, isAllowed);
+
+        if (isAllowed) {
+            string memory nextName = shouldUpdateName ? recipientName : whitelistRecipientName[recipient];
+            if (bytes(nextName).length == 0) revert InvalidWhitelistMetadata();
+
+            if (whitelistRecipientIndexPlusOne[recipient] == 0) {
+                whitelistRecipients.push(recipient);
+                whitelistRecipientIndexPlusOne[recipient] = whitelistRecipients.length;
+            }
+
+            whitelistRecipientName[recipient] = nextName;
+            emit WhitelistRecipientMetadataUpdated(recipient, nextName, true);
+            return;
+        }
+
+        uint256 indexPlusOne = whitelistRecipientIndexPlusOne[recipient];
+        if (indexPlusOne != 0) {
+            uint256 removeIndex = indexPlusOne - 1;
+            uint256 lastIndex = whitelistRecipients.length - 1;
+
+            if (removeIndex != lastIndex) {
+                address lastRecipient = whitelistRecipients[lastIndex];
+                whitelistRecipients[removeIndex] = lastRecipient;
+                whitelistRecipientIndexPlusOne[lastRecipient] = indexPlusOne;
+            }
+
+            whitelistRecipients.pop();
+            delete whitelistRecipientIndexPlusOne[recipient];
+        }
+
+        delete whitelistRecipientName[recipient];
+        emit WhitelistRecipientMetadataUpdated(recipient, "", false);
+    }
+
     /// @notice Executes a low-level call and bubbles up any revert data from the target.
     /// @param target The destination contract or EOA.
     /// @param value The native token amount to forward with the call.
@@ -488,7 +588,7 @@ contract ArbAgentAccount is BaseAccount {
         }
         if (msg.sender != address(entryPoint())) revert UnauthorizedCaller();
 
-        _requireGuardrailModule().checkTransaction(target, spendAmount);
+        _requireGuardrailModule().checkTransaction(target, data, spendAmount);
         result = _call(target, value, data);
 
         emit Executed(target, value, spendAmount);

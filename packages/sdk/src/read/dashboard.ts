@@ -49,10 +49,11 @@ export async function readGuardedAccountState(
     client: publicClient,
   });
 
-  const [masterOwner, dashboardState, whitelist] = await Promise.all([
+  const [masterOwner, dashboardState, whitelistTargets, whitelistRecipients] = await Promise.all([
     accountContract.read.masterOwner(),
     accountContract.read.getDashboardState(),
     accountContract.read.getWhitelistTargets(),
+    accountContract.read.getWhitelistRecipients(),
   ]);
 
   const [agentName, sessionSigner, sessionExpiry, spendWindowStart, spendWindowDuration, maxDailyLimit, spentInWindow] =
@@ -73,10 +74,26 @@ export async function readGuardedAccountState(
     maxDailyLimit,
     spentInWindow,
     effectiveSpentInWindow: status === "expired" ? BigInt(0) : spentInWindow,
-    whitelist: whitelist.map((target) => ({
+    whitelistTargets: whitelistTargets.map((target) => ({
       name: target.name,
       address: target.target,
     })),
+    whitelistRecipients: whitelistRecipients.map((recipient) => ({
+      name: recipient.name,
+      address: recipient.recipient,
+    })),
+    whitelist: [
+      ...whitelistTargets.map((target) => ({
+        name: target.name,
+        address: target.target,
+        type: "contract" as const,
+      })),
+      ...whitelistRecipients.map((recipient) => ({
+        name: recipient.name,
+        address: recipient.recipient,
+        type: "wallet" as const,
+      })),
+    ],
     status,
   };
 }

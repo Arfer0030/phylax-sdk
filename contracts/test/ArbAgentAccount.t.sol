@@ -24,6 +24,23 @@ contract MockExecutionTarget {
     }
 }
 
+/// @title MockTransferToken
+/// @notice Minimal ERC-20-like token used to verify recipient allowlist enforcement in guarded transfers.
+contract MockTransferToken {
+    address public lastRecipient;
+    uint256 public lastAmount;
+
+    /// @notice Stores the provided recipient and amount to emulate a successful ERC-20 transfer.
+    /// @param recipient The wallet address receiving the mocked token transfer.
+    /// @param amount The mocked token amount being transferred.
+    /// @return Always returns true to emulate standard ERC-20 transfer success.
+    function transfer(address recipient, uint256 amount) external returns (bool) {
+        lastRecipient = recipient;
+        lastAmount = amount;
+        return true;
+    }
+}
+
 /// @title ArbAgentAccountTest
 /// @notice Unit tests for session-signature validation, guarded execution, and owner bypass behavior.
 contract ArbAgentAccountTest is Test {
@@ -38,6 +55,9 @@ contract ArbAgentAccountTest is Test {
     AI_GuardrailModule internal guardrail;
     MockExecutionTarget internal whitelistedTarget;
     MockExecutionTarget internal blockedTarget;
+    MockTransferToken internal transferToken;
+    address internal approvedRecipient = makeAddr("approvedRecipient");
+    address internal blockedRecipient = makeAddr("blockedRecipient");
 
     /// @notice Deploys a fresh smart account and guardrail setup before each test.
     function setUp() public {
@@ -47,11 +67,14 @@ contract ArbAgentAccountTest is Test {
         guardrail = new AI_GuardrailModule(address(account));
         whitelistedTarget = new MockExecutionTarget();
         blockedTarget = new MockExecutionTarget();
+        transferToken = new MockTransferToken();
 
         vm.startPrank(owner);
         account.setGuardrailModule(guardrail);
         account.setMaxDailyLimit(50);
         account.setProtocolWhitelist(address(whitelistedTarget), "Uniswap V3 Router", true);
+        account.setProtocolWhitelist(address(transferToken), "Mock USDC", true);
+        account.setRecipientWhitelist(approvedRecipient, "Treasury Vault", true);
         account.setSessionSigner(sessionSigner, uint48(block.timestamp + 1 hours));
         vm.stopPrank();
     }
@@ -111,6 +134,7 @@ contract ArbAgentAccountTest is Test {
         account.setAgentName("Trader Agent");
         account.setSpendWindowDuration(7 days);
         account.setProtocolWhitelist(address(blockedTarget), "Aave V3 Pool", true);
+        account.setRecipientWhitelist(blockedRecipient, "Operations Wallet", true);
         vm.stopPrank();
 
         (
@@ -124,6 +148,7 @@ contract ArbAgentAccountTest is Test {
         ) = account.getDashboardState();
 
         ArbAgentAccount.WhitelistTargetMetadata[] memory targets = account.getWhitelistTargets();
+        ArbAgentAccount.WhitelistRecipientMetadata[] memory recipients = account.getWhitelistRecipients();
 
         assertEq(currentAgentName, "Trader Agent");
         assertEq(sessionSigner_, sessionSigner);
@@ -132,9 +157,12 @@ contract ArbAgentAccountTest is Test {
         assertEq(spendWindowDuration_, 7 days);
         assertEq(maxDailyLimit_, 50);
         assertEq(spentToday_, 0);
-        assertEq(targets.length, 2);
-        assertEq(targets[1].target, address(blockedTarget));
-        assertEq(targets[1].name, "Aave V3 Pool");
+        assertEq(targets.length, 3);
+        assertEq(targets[2].target, address(blockedTarget));
+        assertEq(targets[2].name, "Aave V3 Pool");
+        assertEq(recipients.length, 2);
+        assertEq(recipients[1].recipient, blockedRecipient);
+        assertEq(recipients[1].name, "Operations Wallet");
     }
 
     /// @notice Verifies metadata-rich execution emits successfully for later activity-log indexing.
@@ -190,6 +218,27 @@ contract ArbAgentAccountTest is Test {
         account.execute(address(whitelistedTarget), 0, abi.encodeCall(MockExecutionTarget.perform, (456)), 20);
     }
 
+    /// @notice Verifies ERC-20 transfers to recipient wallets not on the allowlist are blocked on-chain.
+    function test_execute_revertsWhenTransferRecipientNotWhitelisted() public {
+        vm.prank(entryPoint);
+        vm.expectRevert(abi.encodeWithSelector(AI_GuardrailModule.RecipientNotWhitelisted.selector, blockedRecipient));
+        account.execute(
+            address(transferToken), 0, abi.encodeCall(MockTransferToken.transfer, (blockedRecipient, 10)), 10
+        );
+    }
+
+    /// @notice Verifies ERC-20 transfers to allowlisted recipient wallets succeed through the EntryPoint path.
+    function test_execute_allowsTransferToWhitelistedRecipient() public {
+        vm.prank(entryPoint);
+        account.execute(
+            address(transferToken), 0, abi.encodeCall(MockTransferToken.transfer, (approvedRecipient, 10)), 10
+        );
+
+        assertEq(transferToken.lastRecipient(), approvedRecipient);
+        assertEq(transferToken.lastAmount(), 10);
+        assertEq(guardrail.spentToday(), 10);
+    }
+
     /// @notice Verifies revoking the session signer invalidates future user operation validation.
     function test_revokeSessionSigner_invalidatesFutureValidation() public {
         vm.prank(owner);
@@ -222,15 +271,15 @@ contract ArbAgentAccountTest is Test {
 
         assertFalse(accountFromFactory.factoryBootstrapEnabled());
 
-        address[] memory targets = new address[](1);
-        targets[0] = address(whitelistedTarget);
-        string[] memory targetNames = new string[](1);
-        targetNames[0] = "Uniswap V3 Router";
+        ArbAgentAccount.PolicyAddressInput[] memory targets = new ArbAgentAccount.PolicyAddressInput[](1);
+        targets[0] = ArbAgentAccount.PolicyAddressInput({name: "Uniswap V3 Router", addr: address(whitelistedTarget)});
+        ArbAgentAccount.PolicyAddressInput[] memory recipients = new ArbAgentAccount.PolicyAddressInput[](1);
+        recipients[0] = ArbAgentAccount.PolicyAddressInput({name: "Treasury Vault", addr: approvedRecipient});
 
         vm.prank(factory);
         vm.expectRevert(ArbAgentAccount.FactoryBootstrapUnavailable.selector);
         accountFromFactory.bootstrapInitialPolicy(
-            "Trader Agent", sessionSigner, uint48(block.timestamp + 2 hours), 1 days, 50, targetNames, targets
+            "Trader Agent", sessionSigner, uint48(block.timestamp + 2 hours), 1 days, 50, targets, recipients
         );
     }
 

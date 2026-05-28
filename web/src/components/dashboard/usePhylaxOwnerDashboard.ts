@@ -318,7 +318,11 @@ export function usePhylaxOwnerDashboard() {
       sessionExpiry,
       spendWindowDuration: BigInt(sessionDuration),
       maxDailyLimit: parseUnits(input.dailyLimit, 6),
-      whitelist: input.whitelist.map(({ name, address }) => ({ name, address })),
+      whitelist: input.whitelist.map(({ name, address, type }) => ({
+        name,
+        address,
+        type: type === "Contract" ? "contract" : "wallet",
+      })),
     });
 
     await publicClient!.waitForTransactionReceipt({ hash: result.hash });

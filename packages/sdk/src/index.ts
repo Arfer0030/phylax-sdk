@@ -31,6 +31,7 @@ export {
   setMaxDailyLimit,
   setSessionSigner,
   setSpendWindowDuration,
+  setWhitelistRecipient,
   setWhitelistTarget,
   topUpGasTank,
 } from "./write/owner.js";
@@ -64,8 +65,11 @@ export type {
   PhylaxUnsignedUserOperation,
   PhylaxUserOperationGasPriceQuote,
   PhylaxUserOperationGasPriceTier,
+  PolicyAddressInput,
+  PolicyAddressType,
   ProvisionGuardedAccountParams,
   SessionKeyMaterial,
   TopUpGasTankResult,
+  WhitelistRecipientInput,
   WhitelistTargetInput,
 } from "./types.js";

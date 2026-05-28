@@ -64,17 +64,25 @@ contract ArbAgentAccountFactoryTest is Test {
     /// @notice Verifies the factory can provision an initial signer, limit, and whitelist in one deployment flow.
     function test_createConfiguredAgentAccount_bootstrapsInitialPolicy() public {
         address sessionSigner = makeAddr("sessionSigner");
+        address treasuryVault = makeAddr("treasuryVault");
         uint48 expiry = uint48(block.timestamp + 2 days);
         uint48 spendWindowDuration = 7 days;
-        string[] memory whitelistNames = new string[](2);
-        whitelistNames[0] = "Uniswap V3 Router";
-        whitelistNames[1] = "Aave V3 Pool";
-        address[] memory whitelistTargets = new address[](2);
-        whitelistTargets[0] = makeAddr("uniswapTarget");
-        whitelistTargets[1] = makeAddr("aaveTarget");
+        ArbAgentAccount.PolicyAddressInput[] memory whitelistTargets = new ArbAgentAccount.PolicyAddressInput[](2);
+        whitelistTargets[0] =
+            ArbAgentAccount.PolicyAddressInput({name: "Uniswap V3 Router", addr: makeAddr("uniswapTarget")});
+        whitelistTargets[1] = ArbAgentAccount.PolicyAddressInput({name: "Aave V3 Pool", addr: makeAddr("aaveTarget")});
+        ArbAgentAccount.PolicyAddressInput[] memory whitelistRecipients = new ArbAgentAccount.PolicyAddressInput[](1);
+        whitelistRecipients[0] = ArbAgentAccount.PolicyAddressInput({name: "Treasury Vault", addr: treasuryVault});
 
         (address accountAddress, address guardrailAddress) = factory.createConfiguredAgentAccount(
-            owner, "Trader Agent", sessionSigner, expiry, spendWindowDuration, 75e6, whitelistNames, whitelistTargets
+            owner,
+            "Trader Agent",
+            sessionSigner,
+            expiry,
+            spendWindowDuration,
+            75e6,
+            whitelistTargets,
+            whitelistRecipients
         );
 
         ArbAgentAccount account = ArbAgentAccount(payable(accountAddress));
@@ -85,10 +93,12 @@ contract ArbAgentAccountFactoryTest is Test {
         assertEq(guardrail.sessionExpiry(), expiry);
         assertEq(guardrail.spendWindowDuration(), spendWindowDuration);
         assertEq(guardrail.maxDailyLimit(), 75e6);
-        assertTrue(guardrail.targetWhitelist(whitelistTargets[0]));
-        assertTrue(guardrail.targetWhitelist(whitelistTargets[1]));
-        assertEq(account.whitelistTargetName(whitelistTargets[0]), "Uniswap V3 Router");
-        assertEq(account.whitelistTargetName(whitelistTargets[1]), "Aave V3 Pool");
+        assertTrue(guardrail.targetWhitelist(whitelistTargets[0].addr));
+        assertTrue(guardrail.targetWhitelist(whitelistTargets[1].addr));
+        assertTrue(guardrail.recipientWhitelist(treasuryVault));
+        assertEq(account.whitelistTargetName(whitelistTargets[0].addr), "Uniswap V3 Router");
+        assertEq(account.whitelistTargetName(whitelistTargets[1].addr), "Aave V3 Pool");
+        assertEq(account.whitelistRecipientName(treasuryVault), "Treasury Vault");
         assertFalse(account.factoryBootstrapEnabled());
     }
 }

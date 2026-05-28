@@ -2,10 +2,12 @@
 pragma solidity ^0.8.23;
 
 /// @title AI_GuardrailModule
-/// @notice Enforces session expiry, protocol whitelist, and spend-window limits for an AI agent account.
+/// @notice Enforces session expiry, target allowlists, recipient allowlists, and spend-window limits for an AI agent account.
 contract AI_GuardrailModule {
     /// @notice Duration of each rolling spend window used for daily-limit enforcement.
     uint48 public constant SPEND_WINDOW = 1 days;
+    /// @notice ERC-20 transfer selector used to enforce recipient-level wallet policy.
+    bytes4 public constant ERC20_TRANSFER_SELECTOR = 0xa9059cbb;
 
     /// @notice Smart account allowed to mutate and consume this guardrail state.
     address public immutable controller; // Immutable controller reduces gas on every guardrail check.
@@ -23,6 +25,8 @@ contract AI_GuardrailModule {
 
     /// @notice Whitelist of execution targets the delegated AI session may call.
     mapping(address => bool) public targetWhitelist;
+    /// @notice Whitelist of recipient wallets that may receive ERC-20 transfers from the delegated AI session.
+    mapping(address => bool) public recipientWhitelist;
 
     /// @notice Emitted when the active AI session expiry is updated.
     event SessionExpiryUpdated(uint48 newExpiry);
@@ -30,6 +34,8 @@ contract AI_GuardrailModule {
     event MaxDailyLimitUpdated(uint256 newLimit);
     /// @notice Emitted when a target is added to or removed from the whitelist.
     event TargetWhitelistUpdated(address indexed target, bool isAllowed);
+    /// @notice Emitted when an ERC-20 transfer recipient is added to or removed from the whitelist.
+    event RecipientWhitelistUpdated(address indexed recipient, bool isAllowed);
     /// @notice Emitted whenever the spend window is reset.
     event SpendWindowReset(uint48 indexed newWindowStart);
     /// @notice Emitted whenever the spend window duration is updated.
@@ -40,10 +46,13 @@ contract AI_GuardrailModule {
     error ControllerOnly();
     error InvalidController();
     error InvalidTarget();
+    error InvalidRecipient();
     error SessionExpired(uint48 expiry, uint48 currentTimestamp);
     error TargetNotWhitelisted(address target);
+    error RecipientNotWhitelisted(address recipient);
     error SpendLimitExceeded(uint256 attemptedSpend, uint256 maxAllowed);
     error InvalidSpendWindowDuration();
+    error InvalidTransferCalldata();
 
     modifier onlyController() {
         if (msg.sender != controller) revert ControllerOnly();
@@ -91,6 +100,15 @@ contract AI_GuardrailModule {
         emit TargetWhitelistUpdated(target, isAllowed);
     }
 
+    /// @notice Adds or removes a wallet recipient from the ERC-20 transfer whitelist.
+    /// @param recipient The wallet address allowed to receive ERC-20 transfers from the delegated AI session.
+    /// @param isAllowed Whether this wallet recipient should be treated as whitelisted.
+    function setRecipientWhitelist(address recipient, bool isAllowed) external onlyController {
+        if (recipient == address(0)) revert InvalidRecipient();
+        recipientWhitelist[recipient] = isAllowed;
+        emit RecipientWhitelistUpdated(recipient, isAllowed);
+    }
+
     /// @notice Resets the spend accumulator and starts a fresh spend window from the current timestamp.
     function resetSpentToday() external onlyController {
         spentToday = 0;
@@ -100,9 +118,10 @@ contract AI_GuardrailModule {
 
     /// @notice Validates a guarded transaction and accounts its spend against the active window.
     /// @param target The protocol target being called by the AI smart account.
+    /// @param data The calldata forwarded to the target; used to decode ERC-20 recipients when applicable.
     /// @param spendAmount The policy-accounted spend amount associated with the execution.
     /// @return updatedSpentToday The cumulative spend after accounting for this transaction.
-    function checkTransaction(address target, uint256 spendAmount)
+    function checkTransaction(address target, bytes calldata data, uint256 spendAmount)
         external
         onlyController
         returns (uint256 updatedSpentToday)
@@ -112,6 +131,7 @@ contract AI_GuardrailModule {
             revert SessionExpired(expiry, uint48(block.timestamp));
         }
         if (!targetWhitelist[target]) revert TargetNotWhitelisted(target);
+        _enforceRecipientPolicyIfNeeded(data);
 
         _rollSpendWindowIfNeeded();
 
@@ -122,6 +142,29 @@ contract AI_GuardrailModule {
 
         spentToday = updatedSpentToday;
         emit SpendTracked(target, spendAmount, updatedSpentToday);
+    }
+
+    /// @notice Enforces wallet-recipient allowlisting for ERC-20 transfers emitted by the delegated AI session.
+    /// @param data The calldata forwarded to the target contract.
+    function _enforceRecipientPolicyIfNeeded(bytes calldata data) internal view {
+        if (data.length == 0 || _selector(data) != ERC20_TRANSFER_SELECTOR) {
+            return;
+        }
+        if (data.length < 68) revert InvalidTransferCalldata();
+
+        (address recipient,) = abi.decode(data[4:], (address, uint256));
+        if (!recipientWhitelist[recipient]) revert RecipientNotWhitelisted(recipient);
+    }
+
+    /// @notice Reads the first four calldata bytes as a function selector.
+    /// @param data The calldata forwarded to the execution target.
+    /// @return selector The decoded function selector, or zero when calldata is shorter than four bytes.
+    function _selector(bytes calldata data) internal pure returns (bytes4 selector) {
+        if (data.length < 4) {
+            return bytes4(0);
+        }
+
+        return bytes4(data[:4]);
     }
 
     /// @notice Resets the tracked spend when the active window has elapsed.

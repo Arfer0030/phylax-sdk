@@ -26,8 +26,22 @@ export const arbAgentAccountFactoryAbi = [
       { name: "sessionExpiry", type: "uint48" },
       { name: "spendWindowDuration", type: "uint48" },
       { name: "maxDailyLimit", type: "uint256" },
-      { name: "whitelistNames", type: "string[]" },
-      { name: "whitelistTargets", type: "address[]" },
+      {
+        name: "whitelistTargets",
+        type: "tuple[]",
+        components: [
+          { name: "name", type: "string" },
+          { name: "addr", type: "address" },
+        ],
+      },
+      {
+        name: "whitelistRecipients",
+        type: "tuple[]",
+        components: [
+          { name: "name", type: "string" },
+          { name: "addr", type: "address" },
+        ],
+      },
     ],
     outputs: [
       { name: "account", type: "address" },

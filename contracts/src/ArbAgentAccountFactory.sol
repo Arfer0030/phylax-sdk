@@ -76,8 +76,10 @@ contract ArbAgentAccountFactory {
     /// @param owner The owner who will manage session signers and risk parameters for the new account.
     /// @param sessionSigner The delegated session signer generated for the AI agent.
     /// @param sessionExpiry The unix timestamp until which the delegated session remains valid.
+    /// @param spendWindowDuration The rolling spend-window duration in seconds for the guardrail module.
     /// @param maxDailyLimit The initial cumulative spend limit for the active spend window.
-    /// @param whitelistTargets The initial set of protocol targets allowed for the delegated AI session.
+    /// @param whitelistTargets The initial set of named protocol targets allowed for the delegated AI session.
+    /// @param whitelistRecipients The initial set of named ERC-20 recipient wallets allowed for the delegated AI session.
     /// @return account The deployed smart account address.
     /// @return guardrailModule The deployed guardrail module address linked to the account.
     function createConfiguredAgentAccount(
@@ -87,8 +89,8 @@ contract ArbAgentAccountFactory {
         uint48 sessionExpiry,
         uint48 spendWindowDuration,
         uint256 maxDailyLimit,
-        string[] calldata whitelistNames,
-        address[] calldata whitelistTargets
+        ArbAgentAccount.PolicyAddressInput[] calldata whitelistTargets,
+        ArbAgentAccount.PolicyAddressInput[] calldata whitelistRecipients
     ) external returns (address account, address guardrailModule) {
         (account, guardrailModule) = _createAgentAccount(owner);
         ArbAgentAccount(payable(account))
@@ -98,8 +100,8 @@ contract ArbAgentAccountFactory {
                 sessionExpiry,
                 spendWindowDuration,
                 maxDailyLimit,
-                whitelistNames,
-                whitelistTargets
+                whitelistTargets,
+                whitelistRecipients
             );
 
         emit AgentAccountProvisioned(

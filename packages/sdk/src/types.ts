@@ -20,9 +20,22 @@ export type SessionKeyMaterial = {
   address: Address;
 };
 
+export type PolicyAddressType = "contract" | "wallet";
+
 export type WhitelistTargetInput = {
   name: string;
   address: Address;
+};
+
+export type WhitelistRecipientInput = {
+  name: string;
+  address: Address;
+};
+
+export type PolicyAddressInput = {
+  name: string;
+  address: Address;
+  type: PolicyAddressType;
 };
 
 export type ProvisionGuardedAccountParams = {
@@ -32,7 +45,7 @@ export type ProvisionGuardedAccountParams = {
   sessionExpiry: number | bigint;
   spendWindowDuration: number | bigint;
   maxDailyLimit: bigint;
-  whitelist: WhitelistTargetInput[];
+  whitelist: PolicyAddressInput[];
 };
 
 export type GuardedAccountSessionStatus = "active" | "expired" | "unconfigured";
@@ -48,7 +61,9 @@ export type GuardedAccountState = {
   maxDailyLimit: bigint;
   spentInWindow: bigint;
   effectiveSpentInWindow: bigint;
-  whitelist: WhitelistTargetInput[];
+  whitelistTargets: WhitelistTargetInput[];
+  whitelistRecipients: WhitelistRecipientInput[];
+  whitelist: PolicyAddressInput[];
   status: GuardedAccountSessionStatus;
 };
 

@@ -50,6 +50,9 @@ export async function provisionGuardedAccount(
   config: PhylaxSdkConfig,
   params: ProvisionGuardedAccountParams,
 ): Promise<ContractWriteResult> {
+  const targetWhitelist = params.whitelist.filter((entry) => entry.type === "contract");
+  const recipientWhitelist = params.whitelist.filter((entry) => entry.type === "wallet");
+
   const hash = await simulateAndWrite(publicClient, walletClient, {
     address: config.addresses.factory,
     abi: arbAgentAccountFactoryAbi,
@@ -61,8 +64,11 @@ export async function provisionGuardedAccount(
       BigInt(params.sessionExpiry),
       BigInt(params.spendWindowDuration),
       params.maxDailyLimit,
-      params.whitelist.map((target) => target.name),
-      params.whitelist.map((target) => target.address),
+      targetWhitelist.map((target) => ({ name: target.name, addr: target.address })),
+      recipientWhitelist.map((recipient) => ({
+        name: recipient.name,
+        addr: recipient.address,
+      })),
     ],
   });
 
@@ -162,6 +168,24 @@ export async function setWhitelistTarget(
     abi: arbAgentAccountAbi,
     functionName: "setProtocolWhitelist",
     args: [targetAddress, targetName, isAllowed],
+  });
+
+  return { hash };
+}
+
+export async function setWhitelistRecipient(
+  publicClient: PhylaxPublicClient,
+  walletClient: PhylaxWalletClient,
+  accountAddress: Address,
+  recipientAddress: Address,
+  recipientName: string,
+  isAllowed: boolean,
+): Promise<ContractWriteResult> {
+  const hash = await simulateAndWrite(publicClient, walletClient, {
+    address: accountAddress,
+    abi: arbAgentAccountAbi,
+    functionName: "setRecipientWhitelist",
+    args: [recipientAddress, recipientName, isAllowed],
   });
 
   return { hash };

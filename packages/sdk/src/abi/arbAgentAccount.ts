@@ -41,6 +41,22 @@ export const arbAgentAccountAbi = [
   },
   {
     type: "function",
+    name: "getWhitelistRecipients",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      {
+        name: "recipients",
+        type: "tuple[]",
+        components: [
+          { name: "recipient", type: "address" },
+          { name: "name", type: "string" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "function",
     name: "setAgentName",
     stateMutability: "nonpayable",
     inputs: [{ name: "newAgentName", type: "string" }],
@@ -84,6 +100,17 @@ export const arbAgentAccountAbi = [
     inputs: [
       { name: "target", type: "address" },
       { name: "targetName", type: "string" },
+      { name: "isAllowed", type: "bool" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "setRecipientWhitelist",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "recipient", type: "address" },
+      { name: "recipientName", type: "string" },
       { name: "isAllowed", type: "bool" },
     ],
     outputs: [],

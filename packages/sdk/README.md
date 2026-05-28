@@ -28,16 +28,60 @@ SDK saat ini sudah mencakup:
   - generate session key
   - derive signer dari private key
   - encode `execute` / `executeWithMetadata`
+- runtime helpers phase 2:
+  - custom `PhylaxRuntimeClient`
+  - fallback Pimlico bundler Arbitrum Sepolia
+  - local session-key signing untuk UserOperation v0.7
+  - custom on-chain paymaster injection untuk `ArbAgentPaymaster`
+  - guarded execution submit + wait receipt
+
+## Runtime Flow Phase 2
+
+`PhylaxRuntimeClient` dipakai untuk flow agent-side:
+
+```ts
+import { arbitrumSepolia } from "viem/chains";
+import { createPhylaxRuntimeClient } from "@phylax/sdk";
+
+const client = await createPhylaxRuntimeClient({
+  chain: arbitrumSepolia,
+  rpcUrl: "https://sepolia-rollup.arbitrum.io/rpc",
+  smartAccountAddress: "0x...",
+  sessionPrivateKey: "0x...",
+  addresses: {
+    factory: "0x...",
+    paymaster: "0x...",
+    billingToken: "0x...",
+    entryPoint: "0x0000000071727de22e5e9d8baf0edac6f37da032",
+  },
+});
+
+const { userOperationHash } = await client.sendGuardedExecution({
+  target: "0xTarget...",
+  value: 0n,
+  data: "0x...",
+  spendAmount: 1_000_000n,
+  action: "Swap Execution",
+  context: "AI trader route on Uniswap V3",
+});
+
+const receipt = await client.waitForUserOperationReceipt(userOperationHash);
+```
 
 ## Belum Dicakup
 
-Bagian berikut sengaja belum dimasukkan pada iterasi ini:
+Bagian berikut masih belum final di iterasi ini:
 
-- smart-account client ERC-4337 penuh untuk custom `ArbAgentAccount`
-- bundler + custom paymaster integration end-to-end
-- revert decoding pipeline untuk transaksi yang gagal
+- generic `sendTransaction()` / `writeContract()` ergonomics untuk Phylax runtime
+- revert decoding pipeline yang rapi untuk blocked/reverted anomalies dari bundler response
+- higher-level AI action builders seperti swap/transfer templates
+- refactor `agent-backend/` agar memakai runtime client ini end-to-end
 
-Boundary ini sengaja dipilih supaya `web/` bisa mulai wiring owner flow sekarang, sementara flow AI agent + bundler bisa ditambahkan setelah deployment testnet siap.
+Boundary ini sengaja dipilih supaya:
+
+- `web/` owner dashboard bisa live lebih dulu
+- agent runtime sudah punya jalur `UserOperation` nyata
+- iterasi berikutnya tinggal fokus ke DX dan error/reporting layer
 
 ## Contoh Arah Penggunaan
 

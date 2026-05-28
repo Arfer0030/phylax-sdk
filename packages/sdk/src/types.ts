@@ -1,4 +1,5 @@
 import type { Address, Chain, Hex } from "viem";
+import type { UserOperation, UserOperationRequest } from "viem/account-abstraction";
 
 export type PhylaxContractAddresses = {
   factory: Address;
@@ -103,3 +104,27 @@ export type ExecuteWithMetadataParams = {
   action: string;
   context: string;
 };
+
+export type PhylaxRuntimeConfig = PhylaxSdkConfig & {
+  smartAccountAddress: Address;
+  sessionPrivateKey: Hex;
+  bundlerUrl?: string;
+  paymasterVerificationGasLimit?: bigint;
+  paymasterPostOpGasLimit?: bigint;
+};
+
+export type PhylaxGuardedExecutionParams = ExecuteWithMetadataParams;
+
+export type PhylaxUserOperationGasPriceTier = {
+  maxFeePerGas: bigint;
+  maxPriorityFeePerGas: bigint;
+};
+
+export type PhylaxUserOperationGasPriceQuote = {
+  slow: PhylaxUserOperationGasPriceTier;
+  standard: PhylaxUserOperationGasPriceTier;
+  fast: PhylaxUserOperationGasPriceTier;
+};
+
+export type PhylaxUnsignedUserOperation = UserOperationRequest<"0.7">;
+export type PhylaxSignedUserOperation = UserOperation<"0.7">;

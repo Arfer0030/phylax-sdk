@@ -42,6 +42,12 @@ export {
   sessionAccountFromPrivateKey,
 } from "./session/index.js";
 
+export {
+  createPhylaxRuntimeClient,
+  PhylaxRuntimeClient,
+  resolvePhylaxBundlerUrl,
+} from "./runtime/index.js";
+
 export type {
   ContractWriteResult,
   ExecuteWithMetadataParams,
@@ -51,7 +57,13 @@ export type {
   GuardedAccountSessionStatus,
   GuardedAccountState,
   PhylaxContractAddresses,
+  PhylaxGuardedExecutionParams,
+  PhylaxRuntimeConfig,
   PhylaxSdkConfig,
+  PhylaxSignedUserOperation,
+  PhylaxUnsignedUserOperation,
+  PhylaxUserOperationGasPriceQuote,
+  PhylaxUserOperationGasPriceTier,
   ProvisionGuardedAccountParams,
   SessionKeyMaterial,
   TopUpGasTankResult,

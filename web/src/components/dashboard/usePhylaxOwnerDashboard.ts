@@ -134,7 +134,7 @@ async function mapGasHistoryWithBlockTime(
 
 export function usePhylaxOwnerDashboard() {
   const queryClient = useQueryClient();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, isReconnecting, status } = useAccount();
   const chainId = useChainId();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
@@ -370,6 +370,10 @@ export function usePhylaxOwnerDashboard() {
     await refetchAll();
   };
 
+  const userUsdcBalance = canReadLive && gasTankQuery.data
+    ? `${Number(formatUnits(gasTankQuery.data.billingTokenBalance, 6)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`
+    : "1,000.00 USDC";
+
   return {
     hasSdkConfig,
     isConnected,
@@ -381,6 +385,9 @@ export function usePhylaxOwnerDashboard() {
     activityLogs,
     gasTankEntries,
     gasConsumptionHistory,
+    userUsdcBalance,
+    isReconnecting,
+    status,
     isLoading:
       accountsQuery.isLoading ||
       gasTankQuery.isLoading ||

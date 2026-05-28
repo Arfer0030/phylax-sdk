@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import LandingFooter from "./landing/LandingFooter";
 import ActivityLogsTable from "./dashboard/ActivityLogsTable";
 import DashboardSidebar from "./dashboard/DashboardSidebar";
@@ -13,6 +13,9 @@ import {
   dashboardNavItems,
   type DashboardViewId,
 } from "./dashboard/dashboard-data";
+import PhylaxConnectButton from "./wallet/PhylaxConnectButton";
+import { Shield, KeyRound, Flame, Activity } from "lucide-react";
+import { motion } from "motion/react";
 
 function DashboardPanel({
   activeView,
@@ -26,6 +29,7 @@ function DashboardPanel({
   onEmergencyRevoke,
   onTopUpGas,
   onClaimTestnetUsdc,
+  userUsdcBalance,
 }: {
   activeView: DashboardViewId;
   onProvisionAgent: () => void;
@@ -43,6 +47,7 @@ function DashboardPanel({
   onEmergencyRevoke: (accountAddress: `0x${string}`) => Promise<void>;
   onTopUpGas: (amount: string) => Promise<void>;
   onClaimTestnetUsdc: () => Promise<void>;
+  userUsdcBalance: string;
 }) {
   if (activeView === "gas-tank") {
     return (
@@ -53,6 +58,7 @@ function DashboardPanel({
         actionsDisabled={actionsDisabled}
         onTopUpGas={onTopUpGas}
         onClaimTestnetUsdc={onClaimTestnetUsdc}
+        userUsdcBalance={userUsdcBalance}
       />
     );
   }
@@ -74,9 +80,109 @@ function DashboardPanel({
   );
 }
 
+function Skeleton({ className }: { className?: string }) {
+  return (
+    <div className={`animate-pulse bg-zinc-800/40 rounded ${className}`} />
+  );
+}
+
+function DashboardSkeleton({ activeView }: { activeView: DashboardViewId }) {
+  if (activeView === "gas-tank") {
+    return (
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-20 bg-zinc-850/60" />
+          <Skeleton className="h-8 w-64 bg-zinc-800/60" />
+          <Skeleton className="h-4 w-full max-w-3xl bg-zinc-800/30" />
+        </div>
+        <div className="grid gap-4 xl:grid-cols-[1.55fr_0.95fr]">
+          <div className="bg-[#111111] p-6 sm:p-7 space-y-6">
+            <Skeleton className="h-4 w-32 bg-zinc-800/60" />
+            <Skeleton className="h-12 w-48 bg-zinc-800/60" />
+            <div className="flex gap-3">
+              <Skeleton className="h-12 w-32 bg-zinc-800/60" />
+              <Skeleton className="h-12 w-44 bg-zinc-800/60" />
+            </div>
+            <Skeleton className="h-4 w-40 bg-zinc-800/60" />
+          </div>
+          <div className="grid gap-4">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="bg-[#111111] p-5 space-y-3">
+                <Skeleton className="h-4 w-28 bg-zinc-800/60" />
+                <Skeleton className="h-8 w-24 bg-zinc-800/60" />
+                <Skeleton className="h-4 w-48 bg-zinc-800/40" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-4 mt-8">
+          <Skeleton className="h-6 w-48 bg-zinc-800/60" />
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full bg-zinc-800/40" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeView === "activity-logs") {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-24 bg-zinc-800/60" />
+          <Skeleton className="h-8 w-56 bg-zinc-800/60" />
+        </div>
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full bg-zinc-800/40" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="bg-[#111111] p-5 space-y-4">
+            <Skeleton className="h-4 w-24 bg-zinc-800/60" />
+            <Skeleton className="h-10 w-32 bg-zinc-800/60" />
+          </div>
+        ))}
+      </div>
+      <div className="space-y-6 mt-8">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48 bg-zinc-800/60" />
+          <Skeleton className="h-10 w-36 bg-zinc-800/60" />
+        </div>
+        <div className="bg-[#111111] p-6 space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="flex items-center justify-between py-4 border-b border-white/5 last:border-0">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-40 bg-zinc-800/60" />
+                <Skeleton className="h-4 w-64 bg-zinc-800/40" />
+              </div>
+              <Skeleton className="h-6 w-20 bg-zinc-800/60" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OwnerDashboard() {
   const [activeView, setActiveView] = useState<DashboardViewId>("overview");
   const [provisionOpen, setProvisionOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const {
     hasSdkConfig,
     isConnected,
@@ -91,8 +197,15 @@ export default function OwnerDashboard() {
     emergencyRevoke,
     claimFaucet,
     submitTopUpGas,
+    userUsdcBalance,
+    isLoading,
+    isReconnecting,
+    status,
   } = usePhylaxOwnerDashboard();
   const actionsDisabled = !canWriteLive;
+
+  const isWalletLoading = !mounted || status === "connecting" || status === "reconnecting";
+  const showDashboard = mounted && isConnected && status === "connected";
 
   return (
     <>
@@ -104,19 +217,59 @@ export default function OwnerDashboard() {
             onSelect={setActiveView}
           />
 
-          <DashboardPanel
-            activeView={activeView}
-            onProvisionAgent={() => setProvisionOpen(true)}
-            stats={stats}
-            accounts={accounts}
-            activityLogs={activityLogs}
-            gasTankEntries={gasTankEntries}
-            gasConsumptionHistory={gasConsumptionHistory}
-            actionsDisabled={actionsDisabled}
-            onEmergencyRevoke={emergencyRevoke}
-            onTopUpGas={submitTopUpGas}
-            onClaimTestnetUsdc={claimFaucet}
-          />
+          {isWalletLoading ? (
+            <DashboardSkeleton activeView={activeView} />
+          ) : showDashboard ? (
+            isLoading ? (
+              <DashboardSkeleton activeView={activeView} />
+            ) : (
+              <DashboardPanel
+                activeView={activeView}
+                onProvisionAgent={() => setProvisionOpen(true)}
+                stats={stats}
+                accounts={accounts}
+                activityLogs={activityLogs}
+                gasTankEntries={gasTankEntries}
+                gasConsumptionHistory={gasConsumptionHistory}
+                actionsDisabled={actionsDisabled}
+                onEmergencyRevoke={emergencyRevoke}
+                onTopUpGas={submitTopUpGas}
+                onClaimTestnetUsdc={claimFaucet}
+                userUsdcBalance={userUsdcBalance}
+              />
+            )
+          ) : (
+            <div className="flex flex-col items-center justify-center border border-white/6 bg-white/[0.01] backdrop-blur-xl rounded-3xl p-8 sm:p-12 text-center min-h-[600px] shadow-[0_0_50px_-12px_rgba(34,211,238,0.03)]">
+              <motion.div
+                className="flex flex-col items-center text-center max-w-xl mb-10"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <h1 className="phx-display font-extrabold text-white text-3xl sm:text-4xl tracking-[-0.05em] mb-4">
+                  Unlock Owner Dashboard
+                </h1>
+                <p className="phx-body text-zinc-400 text-sm sm:text-base leading-relaxed">
+                  Please connect your Master EOA wallet to deploy smart vaults, manage whitelists,
+                  adjust daily spending caps, and deposit stablecoins to your centralized gas tank.
+                </p>
+              </motion.div>
+
+              <motion.div
+                className="flex flex-col items-center"
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+                  <div className="relative">
+                    <PhylaxConnectButton />
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
         </div>
 
         <LandingFooter />
@@ -129,7 +282,7 @@ export default function OwnerDashboard() {
         onSubmit={provisionNewAgent}
       />
 
-      {!hasSdkConfig && (
+      {!hasSdkConfig && isConnected && (
         <p className="mx-auto mt-6 w-full max-w-7xl text-sm text-zinc-500">
           Dashboard is running in mock preview mode. Add Phylax contract addresses to
           <span className="mx-1 font-[family:var(--font-mono)] text-zinc-300">
@@ -147,3 +300,4 @@ export default function OwnerDashboard() {
     </>
   );
 }
+

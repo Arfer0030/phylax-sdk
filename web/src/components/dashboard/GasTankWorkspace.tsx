@@ -11,6 +11,7 @@ type GasTankWorkspaceProps = {
   actionsDisabled?: boolean;
   onTopUpGas: (amount: string) => Promise<void>;
   onClaimTestnetUsdc: () => Promise<void>;
+  userUsdcBalance: string;
 };
 
 export default function GasTankWorkspace({
@@ -20,6 +21,7 @@ export default function GasTankWorkspace({
   actionsDisabled = false,
   onTopUpGas,
   onClaimTestnetUsdc,
+  userUsdcBalance,
 }: GasTankWorkspaceProps) {
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
@@ -72,6 +74,10 @@ export default function GasTankWorkspace({
                 {isClaiming ? "Claiming..." : "Claim Testnet USDC"}
               </button>
             </div>
+            
+            <p className="mt-4 text-[11px] font-mono text-zinc-500 uppercase tracking-wider">
+              Your Wallet Balance: <span className="text-zinc-300 font-semibold">{userUsdcBalance}</span>
+            </p>
           </div>
 
           <div className="grid gap-4">

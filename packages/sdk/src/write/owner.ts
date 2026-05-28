@@ -18,12 +18,30 @@ async function simulateAndWrite(
   parameters: Parameters<PhylaxPublicClient["simulateContract"]>[0],
 ): Promise<Hash> {
   const account = await resolveWalletAccount(walletClient);
+
+  // Apply a 30% gas fee buffer to circumvent the "max fee per gas less than block base fee" sequencer error on Arbitrum
+  let feeOverrides = {};
+  try {
+    const fees = await publicClient.estimateFeesPerGas();
+    if (fees.maxFeePerGas) {
+      feeOverrides = {
+        maxFeePerGas: (fees.maxFeePerGas * BigInt(130)) / BigInt(100),
+        maxPriorityFeePerGas: fees.maxPriorityFeePerGas
+          ? (fees.maxPriorityFeePerGas * BigInt(130)) / BigInt(100)
+          : undefined,
+      };
+    }
+  } catch (err) {
+    console.warn("Failed to estimate fees per gas, relying on defaults:", err);
+  }
+
   const { request } = await publicClient.simulateContract({
     account,
     ...parameters,
-  });
+    ...feeOverrides,
+  } as any);
 
-  return walletClient.writeContract(request);
+  return walletClient.writeContract(request as any);
 }
 
 export async function provisionGuardedAccount(

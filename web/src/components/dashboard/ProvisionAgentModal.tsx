@@ -12,12 +12,12 @@ type ProvisionAgentModalProps = {
     dailyLimit: string;
     durationValue: string;
     durationUnit: "D" | "W" | "M";
-    whitelist: { name: string; address: `0x${string}` }[];
+    whitelist: { name: string; address: `0x${string}`; type: "Contract" | "Wallet" }[];
   }) => Promise<{ sessionPrivateKey: `0x${string}` }>;
 };
 
 type FlowStep = "form" | "processing" | "revealed";
-type DraftWhitelistTarget = { name: string; address: string };
+type DraftWhitelistTarget = { name: string; address: string; type: "Contract" | "Wallet" };
 
 export default function ProvisionAgentModal({
   open,
@@ -31,7 +31,7 @@ export default function ProvisionAgentModal({
   const [durationValue, setDurationValue] = useState("");
   const [durationUnit, setDurationUnit] = useState("D");
   const [whitelistTargets, setWhitelistTargets] = useState<DraftWhitelistTarget[]>([
-    { name: "", address: "" },
+    { name: "", address: "", type: "Contract" },
   ]);
   const [copiedSessionKey, setCopiedSessionKey] = useState(false);
   const [sessionKey, setSessionKey] = useState<`0x${string}` | null>(null);
@@ -56,7 +56,11 @@ export default function ProvisionAgentModal({
         dailyLimit,
         durationValue,
         durationUnit: durationUnit as "D" | "W" | "M",
-        whitelist: whitelistTargets as { name: string; address: `0x${string}` }[],
+        whitelist: whitelistTargets as {
+          name: string;
+          address: `0x${string}`;
+          type: "Contract" | "Wallet";
+        }[],
       });
 
       setSessionKey(result.sessionPrivateKey);
@@ -73,7 +77,7 @@ export default function ProvisionAgentModal({
     setDailyLimit("");
     setDurationValue("");
     setDurationUnit("D");
-    setWhitelistTargets([{ name: "", address: "" }]);
+    setWhitelistTargets([{ name: "", address: "", type: "Contract" }]);
     setCopiedSessionKey(false);
     setSessionKey(null);
     setErrorMessage(null);
@@ -93,7 +97,7 @@ export default function ProvisionAgentModal({
   };
 
   const addWhitelistTarget = () => {
-    setWhitelistTargets((current) => [...current, { name: "", address: "" }]);
+    setWhitelistTargets((current) => [...current, { name: "", address: "", type: "Contract" }]);
   };
 
   const removeWhitelistTarget = (index: number) => {
@@ -180,7 +184,7 @@ export default function ProvisionAgentModal({
                   <input
                     value={durationValue}
                     onChange={(event) => setDurationValue(event.target.value)}
-                    placeholder="24"
+                    placeholder="1"
                     className="w-full border border-white/10 bg-[#111111] px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-300"
                   />
                   <select
@@ -198,7 +202,7 @@ export default function ProvisionAgentModal({
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="phx-label">Whitelist contract addresses</span>
+                <span className="phx-label">Whitelist contract / wallet addresses</span>
                 <button
                   onClick={addWhitelistTarget}
                   className="inline-flex items-center gap-2 text-sm font-medium text-zinc-400 transition hover:text-white"
@@ -210,7 +214,7 @@ export default function ProvisionAgentModal({
 
               <div className="space-y-3">
               {whitelistTargets.map((target, index) => (
-                  <div key={`whitelist-${index}`} className="grid gap-3 sm:grid-cols-[0.7fr_1.3fr_auto]">
+                  <div key={`whitelist-${index}`} className="grid gap-3 sm:grid-cols-[0.55fr_1.15fr_0.5fr_auto]">
                     <input
                       value={target.name}
                       onChange={(event) =>
@@ -227,6 +231,20 @@ export default function ProvisionAgentModal({
                       placeholder="0xE592427A0AEce92De3Edee1F18E0157C05861564"
                       className="w-full border border-white/10 bg-[#111111] px-4 py-3 text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-300"
                     />
+                    <select
+                      value={target.type}
+                      onChange={(event) =>
+                        updateWhitelistTarget(
+                          index,
+                          "type",
+                          event.target.value as DraftWhitelistTarget["type"],
+                        )
+                      }
+                      className="w-full border border-white/10 bg-[#111111] px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-300"
+                    >
+                      <option value="Contract">Contract</option>
+                      <option value="Wallet">Wallet</option>
+                    </select>
                     <button
                       onClick={() => removeWhitelistTarget(index)}
                       className="inline-flex items-center justify-center border border-white/10 px-4 py-3 text-zinc-400 transition hover:border-red-500 hover:text-red-300"

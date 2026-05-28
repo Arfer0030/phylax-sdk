@@ -33,7 +33,7 @@ type ProvisionAgentInput = {
   dailyLimit: string;
   durationValue: string;
   durationUnit: "D" | "W" | "M";
-  whitelist: { name: string; address: `0x${string}` }[];
+  whitelist: { name: string; address: `0x${string}`; type: "Contract" | "Wallet" }[];
 };
 
 function formatRelativeTimestampFromSeconds(timestamp: bigint) {
@@ -318,7 +318,7 @@ export function usePhylaxOwnerDashboard() {
       sessionExpiry,
       spendWindowDuration: BigInt(sessionDuration),
       maxDailyLimit: parseUnits(input.dailyLimit, 6),
-      whitelist: input.whitelist,
+      whitelist: input.whitelist.map(({ name, address }) => ({ name, address })),
     });
 
     await publicClient!.waitForTransactionReceipt({ hash: result.hash });

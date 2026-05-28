@@ -1,8 +1,9 @@
 "use client";
 
-import { Copy, Plus, X } from "lucide-react";
+import { Copy, Plus, X, Pencil } from "lucide-react";
 import { useState } from "react";
 import EmergencyRevokeModal from "./EmergencyRevokeModal";
+import EditPolicyModal from "./EditPolicyModal";
 import type { GuardedAccount, WhitelistTarget } from "./dashboard-data";
 
 type GuardedAccountsTableProps = {
@@ -10,6 +11,16 @@ type GuardedAccountsTableProps = {
   onProvisionAgent: () => void;
   actionsDisabled?: boolean;
   onEmergencyRevoke: (accountAddress: `0x${string}`) => Promise<void>;
+  onUpdateDailyLimit: (accountAddress: `0x${string}`, limit: string) => Promise<void>;
+  onUpdateWhitelist: (
+    accountAddress: `0x${string}`,
+    name: string,
+    targetAddress: `0x${string}`,
+    type: "contract" | "wallet",
+    isAllowed: boolean
+  ) => Promise<void>;
+  onUpdateAgentName: (accountAddress: `0x${string}`, name: string) => Promise<void>;
+  onUpdateSpendWindow: (accountAddress: `0x${string}`, durationSeconds: number) => Promise<void>;
 };
 
 type WhitelistModalProps = {
@@ -147,9 +158,14 @@ export default function GuardedAccountsTable({
   onProvisionAgent,
   actionsDisabled = false,
   onEmergencyRevoke,
+  onUpdateDailyLimit,
+  onUpdateWhitelist,
+  onUpdateAgentName,
+  onUpdateSpendWindow,
 }: GuardedAccountsTableProps) {
   const [selectedWhitelist, setSelectedWhitelist] = useState<GuardedAccount | null>(null);
   const [selectedRevoke, setSelectedRevoke] = useState<GuardedAccount | null>(null);
+  const [selectedEdit, setSelectedEdit] = useState<GuardedAccount | null>(null);
   const [copiedAccountId, setCopiedAccountId] = useState<string | null>(null);
 
   const handleCopyAccountAddress = async (account: GuardedAccount) => {
@@ -255,13 +271,23 @@ export default function GuardedAccountsTable({
                           Inactive
                         </button>
                       ) : (
-                        <button
-                          onClick={() => setSelectedRevoke(account)}
-                          disabled={actionsDisabled}
-                          className="border border-white/16 px-4 py-2 font-[family:var(--font-mono)] text-[12px] uppercase tracking-[0.2em] text-zinc-300 transition hover:border-red-500 hover:bg-red-500 hover:text-white"
-                        >
-                          Kill-Switch
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setSelectedEdit(account)}
+                            disabled={actionsDisabled}
+                            className="p-2.5 border border-white/16 text-zinc-300 transition hover:border-white hover:text-white cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                            title="Edit Guard Policies"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setSelectedRevoke(account)}
+                            disabled={actionsDisabled}
+                            className="border border-white/16 px-4 py-2 font-[family:var(--font-mono)] text-[12px] uppercase tracking-[0.2em] text-zinc-300 transition hover:border-red-500 hover:bg-red-500 hover:text-white cursor-pointer disabled:cursor-not-allowed"
+                          >
+                            Kill-Switch
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -285,6 +311,18 @@ export default function GuardedAccountsTable({
           account={selectedRevoke}
           onConfirm={onEmergencyRevoke}
           onClose={() => setSelectedRevoke(null)}
+        />
+      )}
+
+      {selectedEdit && (
+        <EditPolicyModal
+          account={selectedEdit}
+          onClose={() => setSelectedEdit(null)}
+          onUpdateDailyLimit={onUpdateDailyLimit}
+          onUpdateWhitelist={onUpdateWhitelist}
+          onUpdateAgentName={onUpdateAgentName}
+          onUpdateSpendWindow={onUpdateSpendWindow}
+          disabled={actionsDisabled}
         />
       )}
     </>

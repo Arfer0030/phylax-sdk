@@ -21,6 +21,7 @@ export type DashboardStat = {
 export type WhitelistTarget = {
   name: string;
   address: string;
+  type?: "contract" | "wallet";
 };
 
 export type GuardedAccount = {

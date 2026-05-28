@@ -10,10 +10,17 @@ import {
   readOwnerGuardedAccounts,
   revokeSessionSigner,
   topUpGasTank,
+  arbAgentAccountFactoryAbi,
+  registerSponsoredAccount,
+  setMaxDailyLimit,
+  setWhitelistTarget,
+  setWhitelistRecipient,
+  setAgentName,
+  setSpendWindowDuration,
   type GasSettlementLog,
 } from "@phylax/sdk";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatUnits, parseUnits } from "viem";
+import { formatUnits, parseUnits, parseEventLogs } from "viem";
 import { useAccount, useChainId, usePublicClient, useWalletClient } from "wagmi";
 import { arbitrumSepolia } from "wagmi/chains";
 import { phylaxSdkConfig } from "@/lib/phylax";
@@ -311,6 +318,7 @@ export function usePhylaxOwnerDashboard() {
     const sessionDuration = durationUnitToSeconds(input.durationValue, input.durationUnit);
     const sessionExpiry = BigInt(Math.floor(Date.now() / 1000) + sessionDuration);
 
+    // 1. Deploy and configure the Smart Account via the Factory
     const result = await provisionGuardedAccount(publicClient!, walletClient!, phylaxSdkConfig!, {
       owner: address!,
       agentName: input.agentName,
@@ -325,7 +333,27 @@ export function usePhylaxOwnerDashboard() {
       })),
     });
 
-    await publicClient!.waitForTransactionReceipt({ hash: result.hash });
+    const receipt = await publicClient!.waitForTransactionReceipt({ hash: result.hash });
+
+    // 2. Decode the deployed Smart Account address from the logs
+    const logs = parseEventLogs({
+      abi: arbAgentAccountFactoryAbi,
+      eventName: "AgentAccountCreated",
+      logs: receipt.logs,
+    });
+    const newAccountAddress = logs[0]?.args?.account;
+
+    if (newAccountAddress) {
+      // 3. Register the newly created account inside the Paymaster for gas tank sponsorship
+      const registerResult = await registerSponsoredAccount(
+        publicClient!,
+        walletClient!,
+        phylaxSdkConfig!,
+        newAccountAddress
+      );
+      await publicClient!.waitForTransactionReceipt({ hash: registerResult.hash });
+    }
+
     await refetchAll();
 
     return { sessionPrivateKey: session.privateKey };
@@ -374,6 +402,80 @@ export function usePhylaxOwnerDashboard() {
     await refetchAll();
   };
 
+  const updateDailyLimit = async (accountAddress: `0x${string}`, limit: string) => {
+    if (!canWriteLive) {
+      return;
+    }
+    const result = await setMaxDailyLimit(
+      publicClient!,
+      walletClient!,
+      accountAddress,
+      parseUnits(limit, 6)
+    );
+    await publicClient!.waitForTransactionReceipt({ hash: result.hash });
+    await refetchAll();
+  };
+
+  const updateWhitelist = async (
+    accountAddress: `0x${string}`,
+    name: string,
+    targetAddress: `0x${string}`,
+    type: "contract" | "wallet",
+    isAllowed: boolean
+  ) => {
+    if (!canWriteLive) {
+      return;
+    }
+    const result =
+      type === "contract"
+        ? await setWhitelistTarget(
+            publicClient!,
+            walletClient!,
+            accountAddress,
+            targetAddress,
+            name,
+            isAllowed
+          )
+        : await setWhitelistRecipient(
+            publicClient!,
+            walletClient!,
+            accountAddress,
+            targetAddress,
+            name,
+            isAllowed
+          );
+    await publicClient!.waitForTransactionReceipt({ hash: result.hash });
+    await refetchAll();
+  };
+
+  const updateAgentName = async (accountAddress: `0x${string}`, name: string) => {
+    if (!canWriteLive) {
+      return;
+    }
+    const result = await setAgentName(
+      publicClient!,
+      walletClient!,
+      accountAddress,
+      name
+    );
+    await publicClient!.waitForTransactionReceipt({ hash: result.hash });
+    await refetchAll();
+  };
+
+  const updateSpendWindow = async (accountAddress: `0x${string}`, durationSeconds: number) => {
+    if (!canWriteLive) {
+      return;
+    }
+    const result = await setSpendWindowDuration(
+      publicClient!,
+      walletClient!,
+      accountAddress,
+      BigInt(durationSeconds)
+    );
+    await publicClient!.waitForTransactionReceipt({ hash: result.hash });
+    await refetchAll();
+  };
+
   const userUsdcBalance = canReadLive && gasTankQuery.data
     ? `${Number(formatUnits(gasTankQuery.data.billingTokenBalance, 6)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC`
     : "1,000.00 USDC";
@@ -401,5 +503,9 @@ export function usePhylaxOwnerDashboard() {
     emergencyRevoke,
     claimFaucet,
     submitTopUpGas,
+    updateDailyLimit,
+    updateWhitelist,
+    updateAgentName,
+    updateSpendWindow,
   };
 }

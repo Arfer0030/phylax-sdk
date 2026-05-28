@@ -30,6 +30,10 @@ function DashboardPanel({
   onTopUpGas,
   onClaimTestnetUsdc,
   userUsdcBalance,
+  onUpdateDailyLimit,
+  onUpdateWhitelist,
+  onUpdateAgentName,
+  onUpdateSpendWindow,
 }: {
   activeView: DashboardViewId;
   onProvisionAgent: () => void;
@@ -48,6 +52,16 @@ function DashboardPanel({
   onTopUpGas: (amount: string) => Promise<void>;
   onClaimTestnetUsdc: () => Promise<void>;
   userUsdcBalance: string;
+  onUpdateDailyLimit: (accountAddress: `0x${string}`, limit: string) => Promise<void>;
+  onUpdateWhitelist: (
+    accountAddress: `0x${string}`,
+    name: string,
+    targetAddress: `0x${string}`,
+    type: "contract" | "wallet",
+    isAllowed: boolean
+  ) => Promise<void>;
+  onUpdateAgentName: (accountAddress: `0x${string}`, name: string) => Promise<void>;
+  onUpdateSpendWindow: (accountAddress: `0x${string}`, durationSeconds: number) => Promise<void>;
 }) {
   if (activeView === "gas-tank") {
     return (
@@ -75,6 +89,10 @@ function DashboardPanel({
         onProvisionAgent={onProvisionAgent}
         actionsDisabled={actionsDisabled}
         onEmergencyRevoke={onEmergencyRevoke}
+        onUpdateDailyLimit={onUpdateDailyLimit}
+        onUpdateWhitelist={onUpdateWhitelist}
+        onUpdateAgentName={onUpdateAgentName}
+        onUpdateSpendWindow={onUpdateSpendWindow}
       />
     </div>
   );
@@ -201,6 +219,10 @@ export default function OwnerDashboard() {
     isLoading,
     isReconnecting,
     status,
+    updateDailyLimit,
+    updateWhitelist,
+    updateAgentName,
+    updateSpendWindow,
   } = usePhylaxOwnerDashboard();
   const actionsDisabled = !canWriteLive;
 
@@ -236,6 +258,10 @@ export default function OwnerDashboard() {
                 onTopUpGas={submitTopUpGas}
                 onClaimTestnetUsdc={claimFaucet}
                 userUsdcBalance={userUsdcBalance}
+                onUpdateDailyLimit={updateDailyLimit}
+                onUpdateWhitelist={updateWhitelist}
+                onUpdateAgentName={updateAgentName}
+                onUpdateSpendWindow={updateSpendWindow}
               />
             )
           ) : (

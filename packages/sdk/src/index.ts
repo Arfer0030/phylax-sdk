@@ -44,7 +44,10 @@ export {
 } from "./session/index.js";
 
 export {
+  createArbitrumSepoliaRuntimeClient,
+  createArbitrumSepoliaRuntimeConfig,
   createPhylaxRuntimeClient,
+  PHYLAX_DEFAULT_ARBITRUM_SEPOLIA_ADDRESSES,
   PhylaxRuntimeClient,
   resolvePhylaxBundlerUrl,
 } from "./runtime/index.js";
@@ -57,6 +60,7 @@ export type {
   GasTankState,
   GuardedAccountSessionStatus,
   GuardedAccountState,
+  PhylaxArbitrumSepoliaRuntimeConfigInput,
   PhylaxContractAddresses,
   PhylaxGuardedExecutionParams,
   PhylaxRuntimeConfig,

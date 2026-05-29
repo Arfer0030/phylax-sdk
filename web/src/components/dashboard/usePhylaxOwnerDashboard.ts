@@ -11,6 +11,7 @@ import {
   revokeSessionSigner,
   topUpGasTank,
   arbAgentAccountFactoryAbi,
+  arbAgentAccountAbi,
   registerSponsoredAccount,
   setMaxDailyLimit,
   setWhitelistTarget,
@@ -20,7 +21,7 @@ import {
   type GasSettlementLog,
 } from "@phylax/sdk";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatUnits, parseUnits, parseEventLogs } from "viem";
+import { decodeFunctionData, erc20Abi, formatUnits, parseUnits, parseEventLogs } from "viem";
 import { useAccount, useChainId, usePublicClient, useWalletClient } from "wagmi";
 import { arbitrumSepolia } from "wagmi/chains";
 import { phylaxSdkConfig } from "@/lib/phylax";
@@ -72,6 +73,13 @@ function durationUnitToSeconds(value: string, unit: "D" | "W" | "M") {
   }
 
   return amount * 30 * 24 * 60 * 60;
+}
+
+function formatUsdcStat(value: number, maximumFractionDigits = 2) {
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits,
+  });
 }
 
 function toUiAccount(
@@ -139,6 +147,42 @@ async function mapGasHistoryWithBlockTime(
   );
 }
 
+async function resolveActivityContextFromTransaction(
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>,
+  transactionHash: `0x${string}`,
+  fallbackContext: string,
+) {
+  try {
+    const transaction = await publicClient.getTransaction({ hash: transactionHash });
+    const decodedAccountCall = decodeFunctionData({
+      abi: arbAgentAccountAbi,
+      data: transaction.input,
+    });
+
+    if (
+      decodedAccountCall.functionName !== "executeWithMetadata" &&
+      decodedAccountCall.functionName !== "execute"
+    ) {
+      return fallbackContext;
+    }
+
+    const callData = decodedAccountCall.args[2];
+    const decodedTokenCall = decodeFunctionData({
+      abi: erc20Abi,
+      data: callData,
+    });
+
+    if (decodedTokenCall.functionName !== "transfer") {
+      return fallbackContext;
+    }
+
+    const [recipient, rawAmount] = decodedTokenCall.args;
+    return `Sending ${formatUnits(rawAmount, 6)} USDC to ${recipient}.`;
+  } catch {
+    return fallbackContext;
+  }
+}
+
 export function usePhylaxOwnerDashboard() {
   const queryClient = useQueryClient();
   const { address, isConnected, isReconnecting, status } = useAccount();
@@ -180,6 +224,7 @@ export function usePhylaxOwnerDashboard() {
 
       const settlements = await readGasSettlementLogs(publicClient!, phylaxSdkConfig!, {
         owner: address!,
+        fromBlock: BigInt(0),
       });
 
       return mapGasHistoryWithBlockTime(publicClient!, settlements, accountNameMap);
@@ -195,16 +240,30 @@ export function usePhylaxOwnerDashboard() {
 
       const logs = await Promise.all(
         accounts.map(async (account) => {
-          const executionLogs = await readExecutionActivityLogs(publicClient!, account.address);
+          const executionLogs = await readExecutionActivityLogs(publicClient!, account.address, {
+            fromBlock: BigInt(0),
+          });
+          const sortedExecutionLogs = [...executionLogs].sort((left, right) =>
+            right.blockNumber === left.blockNumber
+              ? right.logIndex - left.logIndex
+              : right.blockNumber > left.blockNumber
+                ? 1
+                : -1,
+          );
 
           return Promise.all(
-            executionLogs.map(async (log) => {
+            sortedExecutionLogs.map(async (log) => {
               let timestamp = blockCache.get(log.blockNumber);
               if (!timestamp) {
                 const block = await publicClient!.getBlock({ blockNumber: log.blockNumber });
                 timestamp = block.timestamp;
                 blockCache.set(log.blockNumber, timestamp);
               }
+              const normalizedContext = await resolveActivityContextFromTransaction(
+                publicClient!,
+                log.transactionHash,
+                log.context || "On-chain execution recorded by Phylax.",
+              );
 
               return {
                 id: `${log.transactionHash}-${log.logIndex}`,
@@ -213,14 +272,14 @@ export function usePhylaxOwnerDashboard() {
                 amount: `${formatUnits(log.spendAmount, 6)} USDC`,
                 result: "Executed" as const,
                 timestamp: formatActivityTimestamp(timestamp),
-                note: log.context || "On-chain execution recorded by Phylax.",
+                note: normalizedContext,
               };
             }),
           );
         }),
       );
 
-      return logs.flat().sort((left, right) => right.timestamp.localeCompare(left.timestamp));
+      return logs.flat();
     },
   });
 
@@ -231,8 +290,8 @@ export function usePhylaxOwnerDashboard() {
 
   const activeAccounts = accounts.filter((account) => account.status === "Active");
   const activeAgentCount = activeAccounts.length;
-  const totalActiveDailyLimit = activeAccounts.reduce(
-    (total, account) => total + account.dailyLimit,
+  const totalActiveRemainingDailyLimit = activeAccounts.reduce(
+    (total, account) => total + Math.max(account.dailyLimit - account.dailyUsed, 0),
     0,
   );
 
@@ -241,7 +300,7 @@ export function usePhylaxOwnerDashboard() {
       id: "gas-balance",
       label: "Gas Tank Balance",
       value: canReadLive && gasTankQuery.data
-        ? `${formatUnits(gasTankQuery.data.gasTankBalance, 6)} USDC`
+        ? `${formatUsdcStat(Number(formatUnits(gasTankQuery.data.gasTankBalance, 6)), 3)} USDC`
         : "45.20 USDC",
       helper: "",
     },
@@ -254,7 +313,7 @@ export function usePhylaxOwnerDashboard() {
     {
       id: "limits",
       label: "Total Daily Limits",
-      value: `${totalActiveDailyLimit.toFixed(2)} USDC`,
+      value: `${formatUsdcStat(totalActiveRemainingDailyLimit)} USDC`,
       helper: "",
     },
     {

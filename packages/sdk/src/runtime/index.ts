@@ -26,15 +26,24 @@ import {
 } from "../session/index.js";
 import type {
   PhylaxGuardedExecutionParams,
+  PhylaxArbitrumSepoliaRuntimeConfigInput,
   PhylaxRuntimeConfig,
   PhylaxSignedUserOperation,
   PhylaxUnsignedUserOperation,
   PhylaxUserOperationGasPriceQuote,
 } from "../types.js";
+import { arbitrumSepolia } from "viem/chains";
 
-const PHYLAX_DEFAULT_PIMLICO_API_KEY = "pim_TLJCcf3pNr3PprxinNH9e7";
+const PHYLAX_DEFAULT_PIMLICO_API_KEY = "pim_E9ajMLH7VMk8ZvyyYtvHjs";
+export const PHYLAX_DEFAULT_ARBITRUM_SEPOLIA_ADDRESSES = {
+  factory: "0x4d76A69109f8700eF5A2c1aE4eA9fcF8Add62599",
+  paymaster: "0xf3207d9556aa8ED9E4ddf610BfCeFE7EA4d88932",
+  billingToken: "0x95074947def59a6860486437B62E1795cC105fDa",
+  entryPoint: "0x0000000071727de22e5e9d8baf0edac6f37da032",
+} as const satisfies Record<string, Address>;
 const PHYLAX_DEFAULT_ARBITRUM_SEPOLIA_BUNDLER_URL =
-  `https://api.pimlico.io/v2/arbitrum-sepolia/rpc?apikey=${PHYLAX_DEFAULT_PIMLICO_API_KEY}`;
+  `https://api.pimlico.io/v2/421614/rpc?apikey=${PHYLAX_DEFAULT_PIMLICO_API_KEY}`;
+const PHYLAX_DEFAULT_ARBITRUM_SEPOLIA_BUNDLER_ORIGIN = "http://localhost:3000";
 
 const DEFAULT_PAYMASTER_VERIFICATION_GAS_LIMIT = 150_000n;
 const DEFAULT_PAYMASTER_POST_OP_GAS_LIMIT = 80_000n;
@@ -65,6 +74,40 @@ export function resolvePhylaxBundlerUrl(config: PhylaxRuntimeConfig): string {
   throw new Error(
     `No default Pimlico bundler URL configured for chain ${config.chain.id}. Provide bundlerUrl explicitly.`,
   );
+}
+
+export function createArbitrumSepoliaRuntimeConfig(
+  input: PhylaxArbitrumSepoliaRuntimeConfigInput,
+): PhylaxRuntimeConfig {
+  return {
+    chain: arbitrumSepolia,
+    rpcUrl: input.rpcUrl,
+    bundlerUrl: input.bundlerUrl ?? PHYLAX_DEFAULT_ARBITRUM_SEPOLIA_BUNDLER_URL,
+    bundlerOrigin:
+      input.bundlerOrigin ?? PHYLAX_DEFAULT_ARBITRUM_SEPOLIA_BUNDLER_ORIGIN,
+    smartAccountAddress: input.smartAccountAddress,
+    sessionPrivateKey: input.sessionPrivateKey,
+    paymasterVerificationGasLimit: input.paymasterVerificationGasLimit,
+    paymasterPostOpGasLimit: input.paymasterPostOpGasLimit,
+    addresses: {
+      factory: PHYLAX_DEFAULT_ARBITRUM_SEPOLIA_ADDRESSES.factory,
+      paymaster: PHYLAX_DEFAULT_ARBITRUM_SEPOLIA_ADDRESSES.paymaster,
+      billingToken:
+        input.billingTokenAddress ??
+        PHYLAX_DEFAULT_ARBITRUM_SEPOLIA_ADDRESSES.billingToken,
+      entryPoint: PHYLAX_DEFAULT_ARBITRUM_SEPOLIA_ADDRESSES.entryPoint,
+    },
+  };
+}
+
+function createBundlerTransport(config: PhylaxRuntimeConfig) {
+  const headers = config.bundlerOrigin
+    ? ({ Origin: config.bundlerOrigin } as Record<string, string>)
+    : undefined;
+
+  return http(resolvePhylaxBundlerUrl(config), {
+    fetchOptions: headers ? { headers } : undefined,
+  });
 }
 
 async function createPhylaxSmartAccount(
@@ -179,11 +222,12 @@ export class PhylaxRuntimeClient {
   static async create(config: PhylaxRuntimeConfig): Promise<PhylaxRuntimeClient> {
     const publicClient = createPhylaxPublicClient(config);
     const bundlerUrl = resolvePhylaxBundlerUrl(config);
+    const bundlerTransport = createBundlerTransport(config);
     const smartAccount = await createPhylaxSmartAccount(config, publicClient);
 
     const pimlicoClient = createPimlicoClient({
       chain: config.chain,
-      transport: http(bundlerUrl),
+      transport: bundlerTransport,
       entryPoint: {
         address: config.addresses.entryPoint,
         version: "0.7",
@@ -199,7 +243,7 @@ export class PhylaxRuntimeClient {
       account: smartAccount,
       chain: config.chain,
       client: publicClient,
-      bundlerTransport: http(bundlerUrl),
+      bundlerTransport,
       paymaster,
       userOperation: {
         estimateFeesPerGas: async () => {
@@ -329,4 +373,10 @@ export async function createPhylaxRuntimeClient(
   config: PhylaxRuntimeConfig,
 ): Promise<PhylaxRuntimeClient> {
   return PhylaxRuntimeClient.create(config);
+}
+
+export async function createArbitrumSepoliaRuntimeClient(
+  input: PhylaxArbitrumSepoliaRuntimeConfigInput,
+): Promise<PhylaxRuntimeClient> {
+  return createPhylaxRuntimeClient(createArbitrumSepoliaRuntimeConfig(input));
 }

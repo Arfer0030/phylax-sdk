@@ -12,6 +12,7 @@ export type PhylaxSdkConfig = {
   chain: Chain;
   rpcUrl: string;
   bundlerUrl?: string;
+  bundlerOrigin?: string;
   addresses: PhylaxContractAddresses;
 };
 
@@ -124,6 +125,18 @@ export type PhylaxRuntimeConfig = PhylaxSdkConfig & {
   smartAccountAddress: Address;
   sessionPrivateKey: Hex;
   bundlerUrl?: string;
+  bundlerOrigin?: string;
+  paymasterVerificationGasLimit?: bigint;
+  paymasterPostOpGasLimit?: bigint;
+};
+
+export type PhylaxArbitrumSepoliaRuntimeConfigInput = {
+  rpcUrl: string;
+  smartAccountAddress: Address;
+  sessionPrivateKey: Hex;
+  billingTokenAddress?: Address;
+  bundlerUrl?: string;
+  bundlerOrigin?: string;
   paymasterVerificationGasLimit?: bigint;
   paymasterPostOpGasLimit?: bigint;
 };

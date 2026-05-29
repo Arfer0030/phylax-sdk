@@ -42,6 +42,127 @@ type DocTopic =
   | "errors"
   | "faq";
 
+interface VSCodeWindowProps {
+  filename: string;
+  code: string;
+  lang: "ts" | "sol" | "sh" | "env";
+}
+
+function VSCodeWindow({ filename, code, lang }: VSCodeWindowProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const getHighlightedHtml = () => {
+    let escaped = code
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    if (lang === "env") {
+      const lines = escaped.split("\n");
+      const highlightedLines = lines.map(line => {
+        if (line.trim().startsWith("#")) {
+          return `<span class="text-zinc-500 font-mono">${line}</span>`;
+        }
+
+        const eqIndex = line.indexOf("=");
+        if (eqIndex !== -1) {
+          const key = line.substring(0, eqIndex);
+          let val = line.substring(eqIndex + 1);
+          
+          // Highlight placeholders in value
+          val = val.replace(/(&lt;[A-Z_]+&gt;)/g, '<span class="text-cyan-300 font-bold font-mono">$1</span>');
+          
+          return `<span class="text-blue-400 font-bold">${key}</span>=${val}`;
+        }
+        return line;
+      });
+      return highlightedLines.join("\n");
+    }
+
+    if (lang === "sh") {
+      const lines = escaped.split("\n");
+      const highlightedLines = lines.map(line => {
+        if (line.trim().startsWith("#")) {
+          return `<span class="text-zinc-500">${line}</span>`;
+        }
+
+        // Highlight commands/keywords safely
+        let hl = line.replace(/\b(pnpm|npm|yarn|add|install|run)\b/g, '<span class="text-cyan-400 font-bold">$1</span>');
+        hl = hl.replace(/\b(@phylax\/sdk|viem)\b/g, '<span class="text-zinc-100">$1</span>');
+        return hl;
+      });
+      return highlightedLines.join("\n");
+    }
+
+    // For TS and Solidity, use a single-pass regex tokenizer to prevent HTML recursive corruption
+    const tokenRegex = new RegExp(
+      [
+        // Group 1: Comments (double slash or block comments)
+        /(\/\/.*$|\/\*[\s\S]*?\*\/)/.source,
+        // Group 2: Strings (single quotes, double quotes, or backticks)
+        /('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)/.source,
+        // Group 3: Keywords
+        /\b(import|from|const|await|let|var|function|return|async|try|catch|export|contract|pragma|solidity|external|internal|public|private|view|pure|returns|if|revert|new|throw|Error|as|interface|type|class|implements)\b/.source,
+        // Group 4: Phylax SDK Functions
+        /\b(createArbitrumSepoliaRuntimeClient|sendGuardedExecution|provisionGuardedAccount|topUpGasTank|readGuardedAccountState|readGasTankState|revokeSessionSigner|waitForUserOperationReceipt)\b/.source,
+        // Group 5: Types / Builtins / Variables
+        /\b(string|number|bigint|boolean|void|any|BaseAccount|AI_GuardrailModule|publicClient|walletClient|sdkConfig|amount|transferCalldata|userOperationHash|receipt|provisionResult|topUpResult|accountState|gasTankState|ai|response|intent|result|GoogleGenAI|Type|uint256|address|bytes|bool)\b/.source,
+        // Group 6: Numbers
+        /\b(\d+n?)\b/.source,
+        // Group 7: Placeholders (already escaped as &lt;...&gt;)
+        /(&lt;[A-Z_]+&gt;)/.source
+      ].join("|"),
+      "gm"
+    );
+
+    return escaped.replace(tokenRegex, (match, g1, g2, g3, g4, g5, g6, g7) => {
+      if (g1) return `<span class="text-zinc-500 font-mono">${match}</span>`;
+      if (g2) return `<span class="text-emerald-300 font-mono font-medium">${match}</span>`;
+      if (g3) return `<span class="text-blue-400 font-semibold">${match}</span>`;
+      if (g4) return `<span class="text-cyan-300 font-semibold">${match}</span>`;
+      if (g5) return `<span class="text-teal-300">${match}</span>`;
+      if (g6) return `<span class="text-amber-200">${match}</span>`;
+      if (g7) return `<span class="text-cyan-300 font-bold">${match}</span>`;
+      return match;
+    });
+  };
+
+  return (
+    <div className="w-full border border-white/8 bg-[#07080a] rounded-xl overflow-hidden shadow-2xl font-mono text-sm">
+      <div className="flex items-center justify-between px-4 py-3 bg-[#0d0e12] border-b border-white/6 select-none">
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-red-500/80"></span>
+          <span className="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+          <span className="w-3 h-3 rounded-full bg-green-500/80"></span>
+          <span className="ml-4 text-xs font-semibold text-zinc-500 font-sans tracking-wide">
+            {filename}
+          </span>
+        </div>
+
+        <button
+          onClick={handleCopy}
+          className="p-1.5 border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-white rounded transition text-[10px] flex items-center gap-1 cursor-pointer font-sans"
+        >
+          <Copy className="w-3.5 h-3.5 text-cyan-400" />
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+
+      <div className="p-5 overflow-x-auto min-w-0">
+        <pre className="leading-relaxed text-zinc-300 text-sm sm:text-base selection:bg-cyan-500/20">
+          <code dangerouslySetInnerHTML={{ __html: getHighlightedHtml() }} />
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 export default function DocsPage() {
   const [activeTopic, setActiveTopic] = useState<DocTopic>("intro");
   const [copiedText, setCopiedText] = useState("");
@@ -315,47 +436,35 @@ contract ArbAgentAccount is BaseAccount {
 }`;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 sm:py-12 relative font-sans">
+    <div className="max-w-[1440px] mx-auto px-6 py-10 relative font-sans">
       {/* Decorative Neon Blur Glows */}
       <div className="absolute top-10 right-20 w-[300px] h-[300px] bg-cyan-500/5 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute bottom-10 left-10 w-[300px] h-[300px] bg-purple-500/5 rounded-full blur-[100px] pointer-events-none"></div>
 
-      {/* Header */}
-      <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/6 pb-8">
-        <div>
-          <span className="text-xs uppercase tracking-[0.4em] text-cyan-400 font-mono font-semibold block mb-2">
-            DEVELOPER DOCUMENTATION HUB
-          </span>
-          <h2 className="text-4xl sm:text-6xl font-black tracking-tighter uppercase italic text-white flex items-center gap-2">
-            PHYLAX SDK
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-fuchsia-500 animate-pulse">
-              _
-            </span>
-          </h2>
-          <p className="text-base sm:text-lg text-zinc-450 max-w-3xl mt-4 leading-relaxed">
-            Integrate policy-bounded smart accounts into your AI agent applications. Prevent prompt-injection exploits, automate gas sponsorships, and execute on-chain operations autonomously.
-          </p>
-        </div>
-
-        {/* Mobile menu trigger */}
+      {/* Mobile menu trigger - shown only on smaller screens */}
+      <div className="xl:hidden mb-6">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden inline-flex items-center gap-2 px-5 py-3 border border-white/10 bg-[#0c0c0c] text-white text-xs font-mono font-bold uppercase transition hover:bg-zinc-900 cursor-pointer"
+          className="w-full inline-flex items-center justify-between px-5 py-3.5 border border-white/10 bg-[#0d0e12] text-white text-xs font-mono font-bold uppercase transition hover:bg-zinc-900 cursor-pointer rounded-lg"
         >
-          {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          Table of Contents
+          <span className="flex items-center gap-2">
+            {mobileMenuOpen ? <X className="w-4 h-4 text-cyan-400" /> : <Menu className="w-4 h-4 text-cyan-400" />}
+            Table of Contents
+          </span>
+          <span className="text-zinc-400 font-normal">
+            {getActiveTopicDetail()?.label}
+          </span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-        {/* Left Sidebar Menu (Desktop) */}
-        <div className={`md:col-span-3 space-y-6 ${mobileMenuOpen ? "block" : "hidden md:block"}`}>
+      <div className="grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)] gap-10 items-start">
+        {/* Left Sidebar Menu */}
+        <aside className={`xl:border-r xl:border-white/8 xl:pr-6 space-y-6 ${mobileMenuOpen ? "block" : "hidden xl:block"}`}>
           {/* Group topics by category */}
           {["Getting Started", "Core Concepts", "API Reference", "Guides & Recipes", "Security & Trust", "Troubleshooting"].map((category) => {
             const categoryTopics = topics.filter((t) => t.category === category);
             return (
               <div key={category} className="space-y-1">
-                <span className="block text-xs uppercase tracking-widest text-[#555] px-4 py-1.5 font-mono font-bold">
+                <span className="phx-label block px-4 py-1.5 font-mono">
                   {category}
                 </span>
                 <div className="space-y-[3px]">
@@ -369,14 +478,17 @@ contract ArbAgentAccount is BaseAccount {
                           setActiveTopic(topic.id);
                           setMobileMenuOpen(false);
                         }}
-                        className={`w-full text-left px-4 py-3 text-sm font-mono font-semibold transition-all border cursor-pointer flex items-center gap-2.5 ${
+                        className={`relative flex w-full items-center py-2 text-left transition px-4 ${
                           isActive
-                            ? "bg-white/[0.03] text-cyan-400 border-white/10 border-l-2 border-l-cyan-400"
-                            : "text-[#888] border-transparent hover:text-white hover:bg-white/[0.01]"
+                            ? "text-white font-bold"
+                            : "text-zinc-500 hover:text-zinc-300 font-medium"
                         }`}
                       >
-                        <Icon className={`w-4 h-4 ${isActive ? "text-cyan-400" : "text-[#555]"}`} />
-                        <span className="truncate">{topic.label.substring(4)}</span>
+                        <Icon className={`w-4 h-4 mr-2.5 shrink-0 ${isActive ? "text-cyan-400" : "text-zinc-600"}`} />
+                        <span className="truncate text-sm font-sans normal-case">{topic.label.substring(4)}</span>
+                        {isActive && (
+                          <span className="absolute inset-y-0 -left-3 w-px bg-cyan-300/80" />
+                        )}
                       </button>
                     );
                   })}
@@ -384,28 +496,13 @@ contract ArbAgentAccount is BaseAccount {
               </div>
             );
           })}
-
-          <div className="pt-6 border-t border-white/6 font-mono text-xs text-[#555] space-y-3 px-4">
-            <div className="flex justify-between">
-              <span>TARGET CHAIN:</span>
-              <span className="text-zinc-400 font-bold">Arbitrum Sepolia</span>
-            </div>
-            <div className="flex justify-between">
-              <span>AA FLOW:</span>
-              <span className="text-zinc-400">ERC-4337 v0.7</span>
-            </div>
-            <div className="flex justify-between">
-              <span>COMPILER:</span>
-              <span className="text-zinc-400">Solidity 0.8.23</span>
-            </div>
-          </div>
-        </div>
+        </aside>
 
         {/* Right Content Display */}
-        <div className="md:col-span-9 space-y-6 min-w-0">
-          <div className="bg-[#050505] border border-white/6 p-6 sm:p-10 rounded-none relative overflow-hidden">
+        <div className="space-y-6 min-w-0">
+          <div className="border border-white/6 bg-white/[0.01] backdrop-blur-xl rounded-3xl p-6 sm:p-10 relative overflow-hidden shadow-[0_0_50px_-12px_rgba(34,211,238,0.03)]">
             {/* Header Gradient Stripe */}
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-400 via-purple-500 to-fuchsia-500"></div>
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyan-400 to-blue-500"></div>
 
             <div className="flex items-center gap-4 mb-8">
               <span className="p-3 border border-white/10 bg-white/[0.02] text-cyan-400">
@@ -417,10 +514,10 @@ contract ArbAgentAccount is BaseAccount {
                 })()}
               </span>
               <div>
-                <span className="text-sm font-mono text-[#555] uppercase tracking-widest block">
+                <span className="phx-label block">
                   {getActiveTopicDetail()?.category}
                 </span>
-                <h3 className="text-3xl sm:text-4xl font-black tracking-tight text-white uppercase italic">
+                <h3 className="phx-display text-3xl sm:text-4xl tracking-tight text-white uppercase">
                   {getActiveTopicDetail()?.label.substring(4)}
                 </h3>
               </div>
@@ -467,14 +564,14 @@ contract ArbAgentAccount is BaseAccount {
                   <div className="space-y-6 pt-2">
                     <div className="border border-white/6 p-6 sm:p-8 bg-white/[0.01] grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <span className="text-xs font-mono text-red-400 uppercase tracking-widest block mb-2 font-black">PROBLEM: THE EXTREME RISK</span>
+                        <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest block mb-2 font-bold">PROBLEM: THE EXTREME RISK</span>
                         <h5 className="font-bold text-white text-base sm:text-lg mb-3">Exposing EOA Private Keys</h5>
                         <p className="text-sm sm:text-base text-zinc-450 leading-relaxed font-sans normal-case">
                           Placing a master EOA wallet private key inside an AI host server is an invite for catastrophic drainage. If the AI is compromised via prompt injection, there is zero protection.
                         </p>
                       </div>
                       <div className="border-t md:border-t-0 md:border-l border-white/6 pt-6 md:pt-0 md:pl-8">
-                        <span className="text-xs font-mono text-cyan-400 uppercase tracking-widest block mb-2 font-black">PHYLAX SOLUTION: THE SHIELD</span>
+                        <span className="text-xs font-mono text-cyan-400 uppercase tracking-widest block mb-2 font-bold">PHYLAX SOLUTION: THE SHIELD</span>
                         <h5 className="font-bold text-white text-base sm:text-lg mb-3">On-Chain Programmable Guardrails</h5>
                         <p className="text-sm sm:text-base text-zinc-455 leading-relaxed font-sans normal-case">
                           Phylax shifts the authority envelope to the blockchain. All transaction constraints (spend cap, token receivers, whitelisted dApps) are strictly evaluated by smart contracts in real-time.
@@ -484,14 +581,14 @@ contract ArbAgentAccount is BaseAccount {
 
                     <div className="border border-white/6 p-6 sm:p-8 bg-white/[0.01] grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <span className="text-xs font-mono text-red-400 uppercase tracking-widest block mb-2 font-black">PROBLEM: THE UX FRICTION</span>
+                        <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest block mb-2 font-bold">PROBLEM: THE UX FRICTION</span>
                         <h5 className="font-bold text-white text-base sm:text-lg mb-3">Gas Balance Starvation</h5>
                         <p className="text-sm sm:text-base text-zinc-450 leading-relaxed font-sans normal-case">
                           AI bots must continuously hold raw gas tokens (ETH) to operate, adding overhead to Treasury teams who must constantly track and replenish multiple addresses.
                         </p>
                       </div>
                       <div className="border-t md:border-t-0 md:border-l border-white/6 pt-6 md:pt-0 md:pl-8">
-                        <span className="text-xs font-mono text-cyan-400 uppercase tracking-widest block mb-2 font-black">PHYLAX SOLUTION: THE SPONSOR</span>
+                        <span className="text-xs font-mono text-cyan-400 uppercase tracking-widest block mb-2 font-bold">PHYLAX SOLUTION: THE SPONSOR</span>
                         <h5 className="font-bold text-white text-base sm:text-lg mb-3">USDC Centralized Gas Tank</h5>
                         <p className="text-sm sm:text-base text-zinc-455 leading-relaxed font-sans normal-case">
                           Transactions are executed gaslessly from the AI's perspective. The Custom Paymaster settles gas costs by converting the network fee to USDC and debiting the owner's central pool.
@@ -501,14 +598,14 @@ contract ArbAgentAccount is BaseAccount {
 
                     <div className="border border-white/6 p-6 sm:p-8 bg-white/[0.01] grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <span className="text-xs font-mono text-red-400 uppercase tracking-widest block mb-2 font-black">PROBLEM: CONCURRENCY ERROR</span>
+                        <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest block mb-2 font-bold">PROBLEM: CONCURRENCY ERROR</span>
                         <h5 className="font-bold text-white text-base sm:text-lg mb-3">Nonce Sync Conflicts</h5>
                         <p className="text-sm sm:text-base text-zinc-450 leading-relaxed font-sans normal-case">
                           AI agents operate asynchronously. Traditional EOA execution causes severe nonce collision bugs and failed transactions when bot threads execute simultaneously.
                         </p>
                       </div>
                       <div className="border-t md:border-t-0 md:border-l border-white/6 pt-6 md:pt-0 md:pl-8">
-                        <span className="text-xs font-mono text-cyan-400 uppercase tracking-widest block mb-2 font-black">PHYLAX SOLUTION: AA FLOW</span>
+                        <span className="text-xs font-mono text-cyan-400 uppercase tracking-widest block mb-2 font-bold">PHYLAX SOLUTION: AA FLOW</span>
                         <h5 className="font-bold text-white text-base sm:text-lg mb-3">ERC-4337 Account Abstraction</h5>
                         <p className="text-sm sm:text-base text-zinc-455 leading-relaxed font-sans normal-case">
                           By routing decisions through standard ERC-4337 UserOperations and bundler queues, Phylax handles async multi-threading flawlessly without raw nonce collision issues.
@@ -544,7 +641,7 @@ contract ArbAgentAccount is BaseAccount {
                       </div>
                       
                       <div className="space-y-2">
-                        <h4 className="text-xl sm:text-2xl font-black text-white uppercase italic tracking-tight">
+                        <h4 className="phx-display text-xl sm:text-2xl text-white uppercase tracking-tight">
                           Owner Dashboard Flow
                         </h4>
                         <p className="text-sm sm:text-base text-zinc-400 max-w-2xl font-sans normal-case leading-relaxed">
@@ -613,12 +710,12 @@ contract ArbAgentAccount is BaseAccount {
 
                     {/* Phase 2: AI Developer Setup (Stacked) */}
                     <div className="space-y-6 border border-white/6 p-6 sm:p-8 bg-[#080808]/50 relative">
-                      <div className="absolute top-4 right-4 sm:top-6 sm:right-8 flex items-center gap-1.5 text-purple-400 font-bold uppercase tracking-wider text-sm">
+                      <div className="absolute top-4 right-4 sm:top-6 sm:right-8 flex items-center gap-1.5 text-cyan-400 font-bold uppercase tracking-wider text-sm">
                         <Cpu className="w-4 h-4" /> Phase 2: AI Developer SDK Setup
                       </div>
                       
                       <div className="space-y-2">
-                        <h4 className="text-xl sm:text-2xl font-black text-white uppercase italic tracking-tight">
+                        <h4 className="phx-display text-xl sm:text-2xl text-white uppercase tracking-tight">
                           AI Developer Flow
                         </h4>
                         <p className="text-sm sm:text-base text-zinc-400 max-w-2xl font-sans normal-case leading-relaxed">
@@ -629,7 +726,7 @@ contract ArbAgentAccount is BaseAccount {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="p-5 sm:p-6 bg-black border border-white/6 rounded flex flex-col justify-between">
                           <div>
-                            <span className="text-purple-400 font-bold block mb-3 text-sm sm:text-base">01. LIBRARY INSTALLATION</span>
+                            <span className="text-cyan-400 font-bold block mb-3 text-sm sm:text-base">01. LIBRARY INSTALLATION</span>
                             <p className="text-sm sm:text-base text-zinc-450 leading-relaxed font-sans normal-case mb-4">
                               Add the Phylax SDK package and the core Viem library to your Node.js or TypeScript host repository.
                             </p>
@@ -641,7 +738,7 @@ contract ArbAgentAccount is BaseAccount {
                         
                         <div className="p-5 sm:p-6 bg-black border border-white/6 rounded flex flex-col justify-between">
                           <div>
-                            <span className="text-purple-400 font-bold block mb-3 text-sm sm:text-base">02. COMPILE ENV CREDENTIALS</span>
+                            <span className="text-cyan-400 font-bold block mb-3 text-sm sm:text-base">02. COMPILE ENV CREDENTIALS</span>
                             <p className="text-sm sm:text-base text-zinc-450 leading-relaxed font-sans normal-case mb-4">
                               Create a local configuration with the Owner's Smart Account address and the secure Session Private Key.
                             </p>
@@ -649,7 +746,7 @@ contract ArbAgentAccount is BaseAccount {
                           <div>
                             <button
                               onClick={() => setActiveTopic("env")}
-                              className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-fuchsia-400 hover:text-white cursor-pointer font-bold"
+                              className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-cyan-400 hover:text-white cursor-pointer font-bold"
                             >
                               View Env Variables Setup <ArrowRight className="w-3.5 h-3.5" />
                             </button>
@@ -658,7 +755,7 @@ contract ArbAgentAccount is BaseAccount {
 
                         <div className="p-5 sm:p-6 bg-black border border-white/6 rounded flex flex-col justify-between">
                           <div>
-                            <span className="text-purple-400 font-bold block mb-2 text-sm sm:text-base">03. CLIENT INITIALIZATION</span>
+                            <span className="text-cyan-400 font-bold block mb-2 text-sm sm:text-base">03. CLIENT INITIALIZATION</span>
                             <p className="text-sm sm:text-base text-zinc-450 leading-relaxed font-sans normal-case mb-4">
                               Initialize the autonomous runtime client on your host using the env settings.
                             </p>
@@ -675,7 +772,7 @@ contract ArbAgentAccount is BaseAccount {
 
                         <div className="p-5 sm:p-6 bg-black border border-white/6 rounded flex flex-col justify-between">
                           <div>
-                            <span className="text-purple-400 font-bold block mb-2 text-sm sm:text-base">04. SUBMIT TRANSACTION INTENTS</span>
+                            <span className="text-cyan-400 font-bold block mb-2 text-sm sm:text-base">04. SUBMIT TRANSACTION INTENTS</span>
                             <p className="text-sm sm:text-base text-zinc-450 leading-relaxed font-sans normal-case">
                               Submit guarded calls gaslessly via the centralized paymaster, actively protected by the Solidity guardrail engine.
                             </p>
@@ -695,18 +792,7 @@ contract ArbAgentAccount is BaseAccount {
                     To start integrating the SDK on your AI host backend, add these settings to your local configuration parameters or <code className="text-cyan-400 bg-white/5 px-1.5 py-0.5 rounded font-mono text-xs">.env</code> file. Note that system variables like RPC nodes and ERC-20 contract addresses are populated using our active project parameters on Arbitrum Sepolia.
                   </p>
 
-                  <div className="relative bg-black border border-white/6 p-6 font-mono text-sm overflow-x-auto text-zinc-300 rounded">
-                    <div className="absolute right-3 top-3">
-                      <button
-                        onClick={() => handleCopy(codeEnv, "env")}
-                        className="p-1.5 border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-white rounded transition text-[10px] flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-cyan-400" />
-                        {copiedText === "env" ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                    <pre className="leading-relaxed text-zinc-400">{codeEnv}</pre>
-                  </div>
+                  <VSCodeWindow filename=".env" code={codeEnv} lang="env" />
                 </div>
               )}
 
@@ -746,12 +832,12 @@ contract ArbAgentAccount is BaseAccount {
                     AI Agents are otonomous and trigger transactions asynchronously, which makes managing gas fees complicated. Phylax solves this by employing a <strong className="text-white">Centralized Gas Tank</strong> mechanism inside the custom <code className="text-xs font-mono text-cyan-400 bg-white/5 px-1">ArbAgentPaymaster</code>.
                   </p>
 
-                  <div className="border-l-2 border-purple-400/40 bg-purple-950/5 p-6 space-y-3">
+                  <div className="border-l-2 border-cyan-400/40 bg-cyan-950/5 p-6 space-y-3">
                     <h5 className="font-bold text-white font-mono text-base uppercase tracking-wide flex items-center gap-1.5">
-                      <Server className="w-4 h-4 text-purple-400" /> Gas abstraction workflow
+                      <Server className="w-4 h-4 text-cyan-400" /> Gas abstraction workflow
                     </h5>
                     <ol className="list-decimal pl-5 text-sm sm:text-base text-zinc-500 space-y-2">
-                      <li><strong className="text-zinc-400">Owner Top-Up</strong>: Owner menyetorkan saldo USDC ke kontrak Paymaster, mencatat saldo di <code className="text-xs font-mono text-purple-400 bg-white/5 px-1">gasTankBalance[owner]</code>.</li>
+                      <li><strong className="text-zinc-400">Owner Top-Up</strong>: Owner menyetorkan saldo USDC ke kontrak Paymaster, mencatat saldo di <code className="text-xs font-mono text-cyan-400 bg-white/5 px-1">gasTankBalance[owner]</code>.</li>
                       <li><strong className="text-zinc-400">Gas Lock</strong>: During the validation step of a UserOperation, the paymaster estimates the maximum gas costs (`maxCost`) and locks it in the reservation mapping to prevent withdrawals or double-spend racing.</li>
                       <li><strong className="text-zinc-400">Post-Execution Settlement</strong>: Setelah transaksi sukses dieksekusi on-chain, paymaster menerima laporan pengeluaran gas aktual dari EntryPoint. Paymaster mengonversi gas fee ETH riil ke USDC dan mendebet langsung dari tangki gas owner, serta membuka kunci sisa dana reservasi.</li>
                     </ol>
@@ -775,9 +861,9 @@ contract ArbAgentAccount is BaseAccount {
                     The <strong className="text-white">AI_GuardrailModule</strong> is an immutable smart contract deployed alongside the agent's smart account. It intercepts every execution call at the blockchain runtime layer.
                   </p>
 
-                  <div className="border-l-2 border-fuchsia-400/40 bg-fuchsia-950/5 p-6 space-y-3">
+                  <div className="border-l-2 border-cyan-400/40 bg-cyan-950/5 p-6 space-y-3">
                     <h5 className="font-bold text-white font-mono text-base uppercase tracking-wide flex items-center gap-1.5">
-                      <Shield className="w-4 h-4 text-fuchsia-400" /> On-chain policy rules
+                      <Shield className="w-4 h-4 text-cyan-400" /> On-chain policy rules
                     </h5>
                     <ul className="list-disc pl-5 text-sm sm:text-base text-zinc-500 space-y-2">
                       <li><strong className="text-zinc-400">Target Whitelists</strong>: The agent smart account can only execute external call targets (DEX router, lending pool) explicitly permitted in the `targetWhitelist`.</li>
@@ -786,9 +872,8 @@ contract ArbAgentAccount is BaseAccount {
                     </ul>
                   </div>
 
-                  <div className="relative bg-black border border-white/6 p-6 font-mono text-sm overflow-x-auto text-zinc-300 rounded mt-4">
-                    <span className="block text-xs font-mono text-[#555] uppercase tracking-wider mb-2">ArbAgentAccount.sol Interception Outline</span>
-                    <pre className="leading-relaxed text-[#666]">{codeSolidity}</pre>
+                  <div className="mt-4">
+                    <VSCodeWindow filename="ArbAgentAccount.sol" code={codeSolidity} lang="sol" />
                   </div>
                 </div>
               )}
@@ -803,7 +888,7 @@ contract ArbAgentAccount is BaseAccount {
                   <div className="space-y-4 pt-4">
                     {/* Step 1 */}
                     <div className="border border-white/6 p-5 sm:p-6 bg-white/[0.01] flex gap-4 items-start relative">
-                      <div className="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-400 text-cyan-400 font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-white font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
                         1
                       </div>
                       <div>
@@ -820,14 +905,14 @@ contract ArbAgentAccount is BaseAccount {
 
                     {/* Step 2 */}
                     <div className="border border-white/6 p-5 sm:p-6 bg-white/[0.01] flex gap-4 items-start relative">
-                      <div className="w-8 h-8 rounded-full bg-purple-500/10 border border-purple-400 text-purple-400 font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-white font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
                         2
                       </div>
                       <div>
                         <span className="text-xs font-mono text-[#555] uppercase tracking-widest block mb-1">PHYLAX RUNTIME SDK (OFF-CHAIN)</span>
                         <h5 className="font-bold text-white text-base sm:text-lg mb-2">UserOperation Creation & Dispatch</h5>
                         <p className="text-sm sm:text-base text-zinc-400 leading-relaxed font-sans normal-case">
-                          The SDK wraps the signature and calldata into a standard <strong className="text-purple-400">ERC-4337 UserOperation</strong>. It transmits the package to the <strong className="text-white">Bundler RPC</strong> on Arbitrum Sepolia.
+                          The SDK wraps the signature and calldata into a standard <strong className="text-cyan-400">ERC-4337 UserOperation</strong>. It transmits the package to the <strong className="text-white">Bundler RPC</strong> on Arbitrum Sepolia.
                         </p>
                       </div>
                     </div>
@@ -837,14 +922,14 @@ contract ArbAgentAccount is BaseAccount {
 
                     {/* Step 3 */}
                     <div className="border border-white/6 p-5 sm:p-6 bg-white/[0.01] flex gap-4 items-start relative">
-                      <div className="w-8 h-8 rounded-full bg-fuchsia-500/10 border border-fuchsia-400 text-fuchsia-400 font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-white font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
                         3
                       </div>
                       <div>
                         <span className="text-xs font-mono text-[#555] uppercase tracking-widest block mb-1">PAYMASTER ENGINE (ON-CHAIN)</span>
                         <h5 className="font-bold text-white text-base sm:text-lg mb-2">USDC Gas Sponsorship Validation</h5>
                         <p className="text-sm sm:text-base text-zinc-400 leading-relaxed font-sans normal-case">
-                          The <strong className="text-fuchsia-400">ArbAgentPaymaster</strong> contract estimates maximum gas costs, checks that the Master Owner's Central Gas Tank has sufficient USDC reserve, locks the gas funds, and approves the transaction for gasless routing.
+                          The <strong className="text-cyan-400">ArbAgentPaymaster</strong> contract estimates maximum gas costs, checks that the Master Owner's Central Gas Tank has sufficient USDC reserve, locks the gas funds, and approves the transaction for gasless routing.
                         </p>
                       </div>
                     </div>
@@ -854,7 +939,7 @@ contract ArbAgentAccount is BaseAccount {
 
                     {/* Step 4 */}
                     <div className="border border-white/6 p-5 sm:p-6 bg-white/[0.01] flex gap-4 items-start relative">
-                      <div className="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-400 text-cyan-400 font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-white font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
                         4
                       </div>
                       <div>
@@ -876,7 +961,7 @@ contract ArbAgentAccount is BaseAccount {
 
                     {/* Step 5 */}
                     <div className="border border-white/6 p-5 sm:p-6 bg-white/[0.01] flex gap-4 items-start relative">
-                      <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-400 text-emerald-400 font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
+                      <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-white font-mono text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">
                         5
                       </div>
                       <div>
@@ -898,18 +983,7 @@ contract ArbAgentAccount is BaseAccount {
                     The AI Agent relies on the <code className="text-cyan-400 bg-white/5 px-1.5 py-0.5 rounded font-mono text-xs">PhylaxRuntimeClient</code> to bundle call intents, fetch gas prices from bundlers, sign payloads with the session key, and submit executions. System addresses like USDC token contract and RPC variables use active project endpoints.
                   </p>
 
-                  <div className="relative bg-black border border-white/6 p-6 font-mono text-sm overflow-x-auto text-zinc-350 rounded">
-                    <div className="absolute right-3 top-3">
-                      <button
-                        onClick={() => handleCopy(codeRuntime, "runtime")}
-                        className="p-1.5 border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-white rounded transition text-[10px] flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-cyan-400" />
-                        {copiedText === "runtime" ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                    <pre className="leading-relaxed text-zinc-400">{codeRuntime}</pre>
-                  </div>
+                  <VSCodeWindow filename="runtime.ts" code={codeRuntime} lang="ts" />
                 </div>
               )}
 
@@ -920,18 +994,7 @@ contract ArbAgentAccount is BaseAccount {
                     Owner Write Actions allow owner wallets (via EOA/Wagmi) to deploy accounts, set up session rules, rotatate signers, adjust daily limits, and fund gas tanks.
                   </p>
 
-                  <div className="relative bg-black border border-white/6 p-6 font-mono text-sm overflow-x-auto text-zinc-300 rounded">
-                    <div className="absolute right-3 top-3">
-                      <button
-                        onClick={() => handleCopy(codeOwnerWrite, "ownerwrite")}
-                        className="p-1.5 border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-white rounded transition text-[10px] flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-purple-400" />
-                        {copiedText === "ownerwrite" ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                    <pre className="leading-relaxed text-zinc-400">{codeOwnerWrite}</pre>
-                  </div>
+                  <VSCodeWindow filename="owner-write.ts" code={codeOwnerWrite} lang="ts" />
                 </div>
               )}
 
@@ -942,18 +1005,7 @@ contract ArbAgentAccount is BaseAccount {
                     Owner Read Actions use multicall aggregates to efficiently fetch policy values, spend status, whitelists, and paymaster gas tank records from the blockchain.
                   </p>
 
-                  <div className="relative bg-black border border-white/6 p-6 font-mono text-sm overflow-x-auto text-zinc-300 rounded">
-                    <div className="absolute right-3 top-3">
-                      <button
-                        onClick={() => handleCopy(codeOwnerRead, "ownerread")}
-                        className="p-1.5 border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-white rounded transition text-[10px] flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-fuchsia-400" />
-                        {copiedText === "ownerread" ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                    <pre className="leading-relaxed text-zinc-400">{codeOwnerRead}</pre>
-                  </div>
+                  <VSCodeWindow filename="owner-read.ts" code={codeOwnerRead} lang="ts" />
                 </div>
               )}
 
@@ -964,18 +1016,7 @@ contract ArbAgentAccount is BaseAccount {
                     This recipe demonstrates how to combine LLM structured output parsing (to extract intent) with the Phylax SDK (to execute on-chain otonomously). The LLM API key uses a generic placeholder.
                   </p>
 
-                  <div className="relative bg-black border border-white/6 p-6 font-mono text-sm overflow-x-auto text-zinc-300 rounded">
-                    <div className="absolute right-3 top-3">
-                      <button
-                        onClick={() => handleCopy(codeRecipeAI, "recipeai")}
-                        className="p-1.5 border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-white rounded transition text-[10px] flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-cyan-400" />
-                        {copiedText === "recipeai" ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                    <pre className="leading-relaxed text-zinc-450">{codeRecipeAI}</pre>
-                  </div>
+                  <VSCodeWindow filename="agent.ts" code={codeRecipeAI} lang="ts" />
                 </div>
               )}
 
@@ -986,18 +1027,7 @@ contract ArbAgentAccount is BaseAccount {
                     If you detect an off-chain server breach on your AI host, instantly invalidate the session signer on-chain using your Owner Wallet.
                   </p>
 
-                  <div className="relative bg-black border border-white/6 p-6 font-mono text-sm overflow-x-auto text-zinc-300 rounded">
-                    <div className="absolute right-3 top-3">
-                      <button
-                        onClick={() => handleCopy(codeRecipeEmergency, "recipeemerg")}
-                        className="p-1.5 border border-white/10 bg-white/[0.02] text-zinc-400 hover:text-white rounded transition text-[10px] flex items-center gap-1 cursor-pointer"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-purple-400" />
-                        {copiedText === "recipeemerg" ? "Copied" : "Copy"}
-                      </button>
-                    </div>
-                    <pre className="leading-relaxed text-zinc-400">{codeRecipeEmergency}</pre>
-                  </div>
+                  <VSCodeWindow filename="emergency.ts" code={codeRecipeEmergency} lang="ts" />
                 </div>
               )}
 
@@ -1031,7 +1061,7 @@ contract ArbAgentAccount is BaseAccount {
                     {/* Threat Model */}
                     <div className="border border-white/6 p-6 sm:p-8 bg-white/[0.01] space-y-4">
                       <h5 className="font-bold text-white text-base sm:text-lg flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-purple-400" />
+                        <AlertTriangle className="w-5 h-5 text-cyan-400" />
                         Threat Vector Mitigation
                       </h5>
                       <div className="space-y-3 font-sans text-sm sm:text-base text-zinc-450">
@@ -1082,12 +1112,12 @@ contract ArbAgentAccount is BaseAccount {
                           <tr>
                             <td className="p-4 font-semibold text-white font-mono text-xs sm:text-sm">TargetNotWhitelisted(target)</td>
                             <td className="p-4">The destination contract address is not in the whitelist mappings.</td>
-                            <td className="p-4 text-purple-400 font-mono text-xs sm:text-sm">Add the target contract address to the allowed list in settings.</td>
+                            <td className="p-4 text-zinc-350 font-mono text-xs sm:text-sm">Add the target contract address to the allowed list in settings.</td>
                           </tr>
                           <tr>
                             <td className="p-4 font-semibold text-white font-mono text-xs sm:text-sm">RecipientNotWhitelisted(recipient)</td>
                             <td className="p-4">ERC-20 transfer receiver EOA/wallet address is not whitelisted.</td>
-                            <td className="p-4 text-fuchsia-400 font-mono text-xs sm:text-sm">Register the payout EOA address in the allowed wallet recipients list.</td>
+                            <td className="p-4 text-zinc-350 font-mono text-xs sm:text-sm">Register the payout EOA address in the allowed wallet recipients list.</td>
                           </tr>
                           <tr>
                             <td className="p-4 font-semibold text-white font-mono text-xs sm:text-sm">SpendLimitExceeded(attempted, limit)</td>
@@ -1097,7 +1127,7 @@ contract ArbAgentAccount is BaseAccount {
                           <tr>
                             <td className="p-4 font-semibold text-white font-mono text-xs sm:text-sm">AA33 / Paymaster balance low</td>
                             <td className="p-4">The centralized gas tank has insufficient USDC to cover validation prefunds.</td>
-                            <td className="p-4 text-amber-400 font-mono text-xs sm:text-sm">Top up the Owner's Gas Tank inside the paymaster portal.</td>
+                            <td className="p-4 text-zinc-350 font-mono text-xs sm:text-sm">Top up the Owner's Gas Tank inside the paymaster portal.</td>
                           </tr>
                         </tbody>
                       </table>

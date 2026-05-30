@@ -22,6 +22,24 @@ export const metadata: Metadata = {
   title: "Phylax - The Immutable Guardian for Autonomous AI Agents",
   description:
     "Deploy secure ERC-4337 accounts on Arbitrum with on-chain guardrails, temporary session keys, and centralized gas tanks for autonomous AI agents.",
+  openGraph: {
+    title: "Phylax - The Immutable Guardian for Autonomous AI Agents",
+    description:
+      "Deploy secure ERC-4337 accounts on Arbitrum with on-chain guardrails, temporary session keys, and centralized gas tanks for autonomous AI agents.",
+    images: [
+      {
+        url: "/images/og-banner.png",
+        alt: "Phylax Open Graph Banner",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Phylax - The Immutable Guardian for Autonomous AI Agents",
+    description:
+      "Deploy secure ERC-4337 accounts on Arbitrum with on-chain guardrails, temporary session keys, and centralized gas tanks for autonomous AI agents.",
+    images: ["/images/og-banner.png"],
+  },
   icons: {
     icon: "/images/logo.png",
     shortcut: "/images/logo.png",

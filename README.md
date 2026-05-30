@@ -1,5 +1,7 @@
 # 🛡️ Phylax SDK: On-Chain Security Guardrails for AI Agents
 
+![Phylax Banner](./web/public/images/og-banner.png)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Arbitrum Sepolia](https://img.shields.io/badge/Network-Arbitrum%20Sepolia-cyan.svg)](https://sepolia.arbitrum.io/)
 [![ERC-4337](https://img.shields.io/badge/Standard-ERC--4337%20v0.7-emerald.svg)](https://eips.ethereum.org/EIPS/eip-4337)
@@ -31,7 +33,7 @@ Phylax operates on three foundational security components:
                                   ▼
                   ┌───────────────────────────────┐
                   │     3. ON-CHAIN SHIELD        │
-                  │  Contract asserts Whitelist,   │
+                  │  Contract asserts Whitelist,  │
                   │  daily caps & spend window.   │
                   └───────────────────────────────┘
 ```
@@ -58,7 +60,7 @@ phylax-sdk/
 └── agent-backend/         # Node.js Agent Host Service (Mock AI Runtime)
 ```
 
-### 1. [contracts/](file:///D:/KULIAH/Hackathon/PhylaxSDK/phylax-sdk/contracts) (Core Solidity Infrastructure)
+### 1. [contracts/](phylax-sdk/contracts) (Core Solidity Infrastructure)
 *   **Core Role**: The absolute root of trust for policy validation and gas settlement.
 *   **Key Components**:
     *   `GuardedAccount.sol`: An ERC-4337 compliant smart contract wallet representing the AI Agent's identity, owned by the Master Owner.
@@ -66,7 +68,7 @@ phylax-sdk/
     *   `AI_GuardrailModule.sol`: Extensible modular policy engine that evaluates whitelists, spend windows, and daily allocation limits.
 *   **Technology Stack**: Solidity `0.8.23`, Foundry (compilation, testing, and deployment scripts).
 
-### 2. [packages/sdk/](file:///D:/KULIAH/Hackathon/PhylaxSDK/phylax-sdk/packages/sdk) (TypeScript Integration Layer)
+### 2. [packages/sdk/](phylax-sdk/packages/sdk) (TypeScript Integration Layer)
 *   **Core Role**: The unified SDK exposed to frontend dashboards and autonomous backend agent scripts.
 *   **Key Components**:
     *   `PhylaxRuntimeClient`: The client-side runtime that abstracts ERC-4337 UserOperation packaging, gas estimations, local session-key signing, and bundler interactions.
@@ -74,7 +76,7 @@ phylax-sdk/
     *   `Read Actions`: Programmatic analytics and metrics queries (`readOwnerGuardedAccounts`, `readGasTankState`).
 *   **Technology Stack**: TypeScript `5.8`, Viem `2.x`, ESModules bundler.
 
-### 3. [web/](file:///D:/KULIAH/Hackathon/PhylaxSDK/phylax-sdk/web) (Interactive Dashboard & Docs)
+### 3. [web/](phylax-sdk/web) (Interactive Dashboard & Docs)
 *   **Core Role**: The visual control tower for Master Owners and the primary documentation hub for developers.
 *   **Key Components**:
     *   `Landing Page`: Sleek, dark-themed introduction showcasing Phylax's technical value proposition.
@@ -82,7 +84,7 @@ phylax-sdk/
     *   `Owner Dashboard`: Administrative portal for deploying smart accounts, configuring spending policies, reviewing live activity logs, and funding gas tanks.
 *   **Technology Stack**: Next.js `16.x` (App Router), React `19.0`, TailwindCSS `4.x`, Lucide Icons.
 
-### 4. [agent-backend/](file:///D:/KULIAH/Hackathon/PhylaxSDK/phylax-sdk/agent-backend) (AI Agent Environment)
+### 4. [agent-backend/](phylax-sdk/agent-backend) (AI Agent Environment)
 *   **Core Role**: Simulates an active, host-server environment running an AI Agent executing autonomous operations.
 *   **Key Components**:
     *   `Mock AI / LLM Tool-Calling`: Translates user text queries ("Rebalance 15 USDC to safety vault") into structured web3 transactional payload calls using LLM structured outputs.
@@ -128,7 +130,6 @@ pnpm dev:backend
 ```
 
 *   **Next.js Frontend**: Accessible on [http://localhost:3000](http://localhost:3000)
-*   **Agent Backend**: Accessible on [http://localhost:3001](http://localhost:3001)
 
 ---
 
@@ -158,12 +159,12 @@ This is the end-to-end path of a single transaction executed by an AI Agent unde
  │             │                             │          │
  │             │ 6. checkTransaction()       │          │
  │             ▼                             │          │
- │  ┌───────────────────────┐                 │          │
- │  │  AI_GuardrailModule   │                 │          │
- │  │  (Whitelist Check)    │                 │          │
- │  └──────────┬────────────┘                 │          │
- │             │ Yes                          │          │
- │             ▼                              ▼          │
+ │  ┌───────────────────────┐                │          │
+ │  │  AI_GuardrailModule   │                │          │
+ │  │  (Whitelist Check)    │                │          │
+ │  └──────────┬────────────┘                │          │
+ │             │ Yes                         │          │
+ │             ▼                             ▼          │
  │  ┌────────────────────────────────────────────────┐  │
  │  │             Target Contract Executed           │  │
  │  │            (e.g., Transfer 15 USDC)            │  │

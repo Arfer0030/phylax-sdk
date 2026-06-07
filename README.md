@@ -14,6 +14,14 @@ AI Agents are intrinsically susceptible to *prompt injection exploits*, semantic
 
 ---
 
+## ⚙️ Installation
+
+```sh
+npm install @phylax-sdk/sdk
+```
+
+---
+
 ## 🔑 Core Security Pillars
 
 Phylax operates on three foundational security components:

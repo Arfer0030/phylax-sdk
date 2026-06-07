@@ -1,11 +1,19 @@
 # 📦 @phylax/sdk (Core TypeScript SDK Reference)
 
-[![npm version](https://img.shields.io/npm/v/@phylax/sdk.svg)](https://www.npmjs.com/package/@phylax/sdk)
+[![npm version](https://img.shields.io/npm/v/@phylax/sdk.svg)](https://www.npmjs.com/package/@phylax-sdk/sdk)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript%205.8-blue.svg)](https://www.typescriptlang.org/)
 [![Viem](https://img.shields.io/badge/Library-Viem%202.x-emerald.svg)](https://viem.sh/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 The **Phylax TypeScript SDK** is the core programmatic integration engine of the Phylax transaction protection framework. Built on top of **Viem**, it abstracts the complexities of EIP-4337 Account Abstraction, off-chain session key signing, programmatic wallet provisioning, and real-time gas sponsorship monitoring into a set of strongly-typed TypeScript primitives.
+
+---
+
+## ⚙️ Installation
+
+```sh
+npm install @phylax-sdk/sdk
+```
 
 ---
 

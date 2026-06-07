@@ -1,11 +1,32 @@
 {
-  "name": "@phylax/sdk",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@phylax-sdk/sdk",
+  "version": "0.1.0",
+  "description": "Phylax SDK for guarded ERC-4337 smart accounts, centralized gas tanks, and AI agent runtime execution on Arbitrum.",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arfer0030/phylax-sdk.git"
+  },
+  "homepage": "https://github.com/Arfer0030/phylax-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/Arfer0030/phylax-sdk/issues"
+  },
+  "keywords": [
+    "phylax",
+    "erc-4337",
+    "account-abstraction",
+    "arbitrum",
+    "smart-account",
+    "paymaster",
+    "ai-agent",
+    "viem",
+    "permissionless",
+    "web3"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,6 +36,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "tsc --noEmit"

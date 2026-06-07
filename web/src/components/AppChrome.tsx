@@ -54,6 +54,15 @@ export default function AppChrome({ children }: AppChromeProps) {
                 GitHub
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
+              <a
+                href="https://www.npmjs.com/package/@phylax-sdk/sdk"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 transition hover:text-zinc-300"
+              >
+                NPM
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
             </nav>
 
             {isDashboard ? (
@@ -82,6 +91,15 @@ export default function AppChrome({ children }: AppChromeProps) {
                 className="inline-flex items-center gap-1 text-[12px] font-bold text-white transition hover:text-zinc-300"
               >
                 GitHub
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
+              <a
+                href="https://www.npmjs.com/package/@phylax-sdk/sdk"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[12px] font-bold text-white transition hover:text-zinc-300"
+              >
+                NPM
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </a>
             </div>

@@ -21,7 +21,7 @@ The web portal is divided into three core functional spaces, designed with a pre
     *   Quick navigation buttons for the Docs Hub and the Owner Dashboard.
 
 ### 2. 📝 Developer Documentation Hub (`/docs`)
-*   **Purpose**: A clean, spacious, high-fidelity technical guide for developers integrating the `@phylax/sdk`.
+*   **Purpose**: A clean, spacious, high-fidelity technical guide for developers integrating the `@phylax-sdk/sdk`.
 *   **Key Features**:
     *   **VS Code Theme Code Blocks**: High-contrast, non-recursive, lexical code token highlighter for Solidity, TypeScript, Bash, and Environment configurations.
     *   **Table of Contents**: A responsive, collapsible, multi-category left sidebar grouping guides from "Getting Started" to "Emergency Recovery".
@@ -52,10 +52,13 @@ Before running the web app, you must configure the environment variables:
 # 1. WalletConnect Project ID for Web3 Wallet Connections (RainbowKit)
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID="your_walletconnect_project_id"
 
-# 2. Arbitrum Sepolia RPC Endpoint (System public node)
+# 2. Public site URL used for metadata / Open Graph image resolution
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# 3. Arbitrum Sepolia RPC Endpoint (System public node)
 NEXT_PUBLIC_PHYLAX_RPC_URL="https://sepolia-rollup.arbitrum.io/rpc"
 
-# 3. Pre-deployed Contract Addresses on Arbitrum Sepolia
+# 4. Pre-deployed Contract Addresses on Arbitrum Sepolia
 NEXT_PUBLIC_PHYLAX_FACTORY_ADDRESS="0x4d76A69109f8700eF5A2c1aE4eA9fcF8Add62599"
 NEXT_PUBLIC_PHYLAX_PAYMASTER_ADDRESS="0xf3207d9556aa8ED9E4ddf610BfCeFE7EA4d88932"
 NEXT_PUBLIC_PHYLAX_BILLING_TOKEN_ADDRESS="0x95074947def59a6860486437B62E1795cC105fDa"
@@ -83,7 +86,7 @@ cd web
 # Installs dependencies if not already done
 pnpm install
 
-# Build the local @phylax/sdk dependency and start next.js
+# Build the local @phylax-sdk/sdk dependency and start next.js
 pnpm run dev
 ```
 
@@ -102,3 +105,4 @@ The application will be live at [http://localhost:3000](http://localhost:3000).
 
 ## 📄 License
 Licensed under the **MIT License**.
+

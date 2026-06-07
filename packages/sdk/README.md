@@ -1,6 +1,6 @@
-# 📦 @phylax/sdk (Core TypeScript SDK Reference)
+# Package @phylax-sdk/sdk (Core TypeScript SDK Reference)
 
-[![npm version](https://img.shields.io/npm/v/@phylax/sdk.svg)](https://www.npmjs.com/package/@phylax-sdk/sdk)
+[![npm version](https://img.shields.io/npm/v/@phylax-sdk/sdk.svg)](https://www.npmjs.com/package/@phylax-sdk/sdk)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript%205.8-blue.svg)](https://www.typescriptlang.org/)
 [![Viem](https://img.shields.io/badge/Library-Viem%202.x-emerald.svg)](https://viem.sh/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -22,7 +22,7 @@ npm install @phylax-sdk/sdk
 The SDK codebase is organized into highly modular, decoupled sub-packages to isolate different developer roles (Master Owner, AI Agent, Frontend Developer, Backend Operator):
 
 ```
-                       @phylax/sdk (Unified Entrypoint)
+                       @phylax-sdk/sdk (Unified Entrypoint)
                                     │
        ┌──────────────────┬─────────┴─────────┬──────────────────┐
        ▼                  ▼                   ▼                  ▼
@@ -200,3 +200,5 @@ When an AI Agent triggers `runtime.sendGuardedExecution()`, the `PhylaxRuntimeCl
 
 ## 📄 License
 Licensed under the **MIT License**.
+
+

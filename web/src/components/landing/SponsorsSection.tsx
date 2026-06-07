@@ -156,7 +156,7 @@ export default function SponsorsSection() {
 
         <div className="mx-auto w-full max-w-7xl px-6 sm:px-10 lg:px-12">
           <Reveal>
-            <LandingSectionEyebrow label="Sponsors" />
+            <LandingSectionEyebrow label="Ecosystem" />
           </Reveal>
         </div>
 
@@ -216,7 +216,7 @@ export default function SponsorsSection() {
       <div className="mx-auto w-full max-w-7xl px-6 py-24 sm:px-10 lg:px-12">
         <div className="space-y-10">
           <Reveal>
-            <LandingSectionEyebrow label="Sponsors" />
+            <LandingSectionEyebrow label="Ecosystem" />
           </Reveal>
 
           <div className="space-y-14">

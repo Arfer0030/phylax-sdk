@@ -3,13 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
-    "dev": "pnpm --filter @phylax/sdk run build && next dev --webpack -p 3000",
-    "build": "pnpm --filter @phylax/sdk run build && next build --webpack",
+    "dev": "pnpm --filter @phylax-sdk/sdk run build && next dev --webpack -p 3000",
+    "build": "pnpm --filter @phylax-sdk/sdk run build && next build --webpack",
     "start": "next start -p 3000",
-    "lint": "pnpm --filter @phylax/sdk run lint && tsc --noEmit"
+    "lint": "pnpm --filter @phylax-sdk/sdk run lint && tsc --noEmit"
   },
   "dependencies": {
-    "@phylax/sdk": "workspace:*",
+    "@phylax-sdk/sdk": "workspace:*",
     "@rainbow-me/rainbowkit": "^2.2.11",
     "@tanstack/react-query": "^5.100.11",
     "lucide-react": "^0.546.0",

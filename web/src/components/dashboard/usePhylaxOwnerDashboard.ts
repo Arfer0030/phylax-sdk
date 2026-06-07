@@ -19,7 +19,7 @@ import {
   setAgentName,
   setSpendWindowDuration,
   type GasSettlementLog,
-} from "@phylax/sdk";
+} from "@phylax-sdk/sdk";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { decodeFunctionData, erc20Abi, formatUnits, parseUnits, parseEventLogs } from "viem";
 import { useAccount, useChainId, usePublicClient, useWalletClient } from "wagmi";

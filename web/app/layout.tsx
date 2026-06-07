@@ -18,7 +18,12 @@ const jetBrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const metadataBase = new URL(
+  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+);
+
 export const metadata: Metadata = {
+  metadataBase,
   title: "Phylax - The Immutable Guardian for Autonomous AI Agents",
   description:
     "Deploy secure ERC-4337 accounts on Arbitrum with on-chain guardrails, temporary session keys, and centralized gas tanks for autonomous AI agents.",

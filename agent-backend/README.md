@@ -20,7 +20,7 @@ The backend serves as a mock autonomous workspace that showcases how on-chain se
 ### 2. 🛡️ Delegated Session Execution (Phylax SDK Integration)
 *   **Role**: Submits execution payloads to the blockchain safely and gaslessly from the host server.
 *   **Core Logic**: 
-    *   Initializes the `@phylax/sdk` `PhylaxRuntimeClient` using a delegated **Ephemeral Session Private Key** (no master owner credentials).
+    *   Initializes the `@phylax-sdk/sdk` `PhylaxRuntimeClient` using a delegated **Ephemeral Session Private Key** (no master owner credentials).
     *   Wraps the transaction parameters inside an EIP-4337 UserOperation.
     *   Signs the payload locally and dispatches it via public bundlers.
 
@@ -87,3 +87,4 @@ The backend API server will start up on [http://localhost:3001](http://localhost
 
 ## 📄 License
 Licensed under the **MIT License**.
+

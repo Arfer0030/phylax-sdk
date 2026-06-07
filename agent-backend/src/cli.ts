@@ -5,7 +5,7 @@ import {
   createArbitrumSepoliaRuntimeClient,
   createArbitrumSepoliaRuntimeConfig,
   readGuardedAccountState,
-} from "@phylax/sdk";
+} from "@phylax-sdk/sdk";
 import { erc20Abi, encodeFunctionData, parseUnits } from "viem";
 import type { Address } from "viem";
 import { createInterface } from "node:readline/promises";

@@ -94,7 +94,7 @@ function VSCodeWindow({ filename, code, lang }: VSCodeWindowProps) {
 
         // Highlight commands/keywords safely
         let hl = line.replace(/\b(pnpm|npm|yarn|add|install|run)\b/g, '<span class="text-cyan-400 font-bold">$1</span>');
-        hl = hl.replace(/\b(@phylax\/sdk|viem)\b/g, '<span class="text-zinc-100">$1</span>');
+        hl = hl.replace(/(@phylax-sdk\/sdk|viem)/g, '<span class="text-zinc-100">$1</span>');
         return hl;
       });
       return highlightedLines.join("\n");
@@ -204,13 +204,13 @@ export default function DocsPage() {
 
   // Code Block Snippets (Using literal system contracts & clean placeholders)
   const codeInstall = `# Install using pnpm (Recommended)
-pnpm add @phylax/sdk viem
+pnpm add @phylax-sdk/sdk viem
 
 # Install using npm
-npm install @phylax/sdk viem
+npm install @phylax-sdk/sdk viem
 
 # Install using yarn
-yarn add @phylax/sdk viem`;
+yarn add @phylax-sdk/sdk viem`;
 
   const codeEnv = `# 1. Guarded Smart Account created through the Owner Dashboard
 PHYLAX_SMART_ACCOUNT_ADDRESS="<YOUR_PHYLAX_SMART_ACCOUNT_ADDRESS>"
@@ -227,7 +227,7 @@ USDC_ADDRESS="0x95074947def59a6860486437B62E1795cC105fDa"
 # 5. Secure LLM api key (Can be Gemini, OpenAI, Claude, etc.)
 AI_API_KEY="<YOUR_AI_API_KEY>"`;
 
-  const codeRuntime = `import { createArbitrumSepoliaRuntimeClient } from "@phylax/sdk";
+  const codeRuntime = `import { createArbitrumSepoliaRuntimeClient } from "@phylax-sdk/sdk";
 import { encodeFunctionData, erc20Abi, parseUnits } from "viem";
 
 // Initialize the live runtime environment for Arbitrum Sepolia
@@ -262,7 +262,7 @@ console.log(\`UserOperation submitted: \${userOperationHash}\`);
 const receipt = await runtime.waitForUserOperationReceipt(userOperationHash);
 console.log(\`Confirmed on-chain in transaction: \${receipt.receipt.transactionHash}\`);`;
 
-  const codeOwnerWrite = `import { provisionGuardedAccount, topUpGasTank } from "@phylax/sdk";
+  const codeOwnerWrite = `import { provisionGuardedAccount, topUpGasTank } from "@phylax-sdk/sdk";
 import { parseUnits } from "viem";
 
 const sdkConfig = {
@@ -305,7 +305,7 @@ const topUpResult = await topUpGasTank(
 );
 console.log("Gas Tank Funded. Approval Tx:", topUpResult.approvalHash, "TopUp Tx:", topUpResult.topUpHash);`;
 
-  const codeOwnerRead = `import { readGuardedAccountState, readGasTankState } from "@phylax/sdk";
+  const codeOwnerRead = `import { readGuardedAccountState, readGasTankState } from "@phylax-sdk/sdk";
 
 const sdkConfig = {
   chain: arbitrumSepolia,
@@ -342,7 +342,7 @@ console.log("Available Balance (Unlocked):", gasTankState.availableGasTankBalanc
 console.log("Active Sponsored Streams:", gasTankState.sponsoredStreamCount);`;
 
   const codeRecipeAI = `import { GoogleGenAI, Type } from "@google/genai";
-import { createArbitrumSepoliaRuntimeClient } from "@phylax/sdk";
+import { createArbitrumSepoliaRuntimeClient } from "@phylax-sdk/sdk";
 import { encodeFunctionData, erc20Abi, parseUnits } from "viem";
 
 const ai = new GoogleGenAI({ apiKey: process.env.AI_API_KEY });
@@ -386,7 +386,7 @@ const { userOperationHash } = await runtime.sendGuardedExecution({
   context: intent.explanation
 });`;
 
-  const codeRecipeEmergency = `import { revokeSessionSigner } from "@phylax/sdk";
+  const codeRecipeEmergency = `import { revokeSessionSigner } from "@phylax-sdk/sdk";
 
 // If you detect suspicious activity on your AI agent host server,
 // issue an immediate revocation call on-chain using your Owner Wallet.
@@ -535,6 +535,29 @@ contract ArbAgentAccount is BaseAccount {
                   <p>
                     AI Agents are intrinsically susceptible to <strong className="text-white">prompt injection exploits</strong>, semantic bugs, and hallucination loops. Traditional private key delegation exposes the user's entire EOA wallet to malicious draining. Phylax bridges the gap between trustless automation and full-custody safety by intercepting transaction requests natively at the blockchain smart contract level.
                   </p>
+                  <div className="border border-white/6 bg-white/[0.02] p-5 sm:p-6 space-y-3">
+                    <p className="text-sm sm:text-base text-zinc-400 leading-relaxed">
+                      The canonical npm package name is <code className="text-cyan-400 bg-white/5 px-1.5 py-0.5 rounded font-mono text-xs">@phylax-sdk/sdk</code>. You can install it directly in any external Node.js or TypeScript project without cloning this monorepo.
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      <a
+                        href="https://www.npmjs.com/package/@phylax-sdk/sdk"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 bg-white px-4 py-3 text-xs sm:text-sm font-bold text-black hover:bg-zinc-200 transition cursor-pointer"
+                      >
+                        View npm Package <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                      <a
+                        href="https://github.com/Arfer0030/phylax-sdk"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 border border-white/10 bg-white/[0.02] px-4 py-3 text-xs sm:text-sm font-bold text-white hover:bg-zinc-900 transition cursor-pointer"
+                      >
+                        View GitHub Repo <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
 
                   <div className="pt-6 flex flex-wrap gap-4">
                     <button
@@ -631,6 +654,33 @@ contract ArbAgentAccount is BaseAccount {
                   <p>
                     Integrating Phylax involves two main roles: the **Master Owner (User)** setting up policies via the dashboard, and the **AI Developer** integrating the autonomous runtime via the SDK.
                   </p>
+                  <div className="border border-cyan-400/20 bg-cyan-950/10 p-5 sm:p-6 space-y-4">
+                    <div className="space-y-2">
+                      <h4 className="text-white font-bold text-base sm:text-lg">Quick Start from npm</h4>
+                      <p className="text-sm sm:text-base text-zinc-400 leading-relaxed">
+                        If you only need the SDK, install <code className="text-cyan-400 bg-white/5 px-1.5 py-0.5 rounded font-mono text-xs">@phylax-sdk/sdk</code> directly into your app. The dashboard and monorepo are optional for SDK consumers.
+                      </p>
+                    </div>
+                    <VSCodeWindow filename="install.sh" code={codeInstall} lang="sh" />
+                    <div className="flex flex-wrap gap-3">
+                      <a
+                        href="https://www.npmjs.com/package/@phylax-sdk/sdk"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 bg-white px-4 py-3 text-xs sm:text-sm font-bold text-black hover:bg-zinc-200 transition cursor-pointer"
+                      >
+                        Open npm Package <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                      <a
+                        href="https://github.com/Arfer0030/phylax-sdk"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 border border-white/10 bg-white/[0.02] px-4 py-3 text-xs sm:text-sm font-bold text-white hover:bg-zinc-900 transition cursor-pointer"
+                      >
+                        Open Source Repository <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
 
                   <div className="space-y-10 pt-2 font-mono text-xs">
                     
@@ -732,7 +782,7 @@ contract ArbAgentAccount is BaseAccount {
                             </p>
                           </div>
                           <div className="bg-black/50 border border-white/10 p-4 rounded text-sm text-zinc-400 overflow-x-auto">
-                            pnpm add @phylax/sdk viem
+                            pnpm add @phylax-sdk/sdk viem
                           </div>
                         </div>
                         

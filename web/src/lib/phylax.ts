@@ -1,4 +1,4 @@
-import type { PhylaxSdkConfig } from "@phylax/sdk";
+import type { PhylaxSdkConfig } from "@phylax-sdk/sdk";
 import { getAddress, isAddress } from "viem";
 import { arbitrumSepolia } from "wagmi/chains";
 

@@ -63,7 +63,7 @@ Phylax is organized as a unified, high-performance `pnpm workspace` to streamlin
 phylax-sdk/
 ├── contracts/             # Core Smart Contracts (Solidity & Foundry)
 ├── packages/
-│   └── sdk/               # Core TypeScript SDK (@phylax/sdk)
+│   └── sdk/               # Core TypeScript SDK (@phylax-sdk/sdk)
 ├── web/                   # Next.js Web App (Dashboard, Docs, Landing Page)
 └── agent-backend/         # Node.js Agent Host Service (Mock AI Runtime)
 ```
@@ -96,7 +96,7 @@ phylax-sdk/
 *   **Core Role**: Simulates an active, host-server environment running an AI Agent executing autonomous operations.
 *   **Key Components**:
     *   `Mock AI / LLM Tool-Calling`: Translates user text queries ("Rebalance 15 USDC to safety vault") into structured web3 transactional payload calls using LLM structured outputs.
-    *   `Autonomous Host`: Plugs directly into the `@phylax/sdk` using the session key to submit on-chain execution payloads gaslessly.
+    *   `Autonomous Host`: Plugs directly into the `@phylax-sdk/sdk` using the session key to submit on-chain execution payloads gaslessly.
 *   **Technology Stack**: Node.js, Express, TypeScript, Google GenAI SDK.
 
 ---
@@ -182,7 +182,7 @@ This is the end-to-end path of a single transaction executed by an AI Agent unde
 
 1. **Natural Language Input**: The user tells their AI assistant: *"Move 15 USDC to safety vault."*
 2. **Intent Parsing**: The AI Agent's LLM interprets the instruction and structures a contract call targeting the ERC-20 transfer function of the USDC contract.
-3. **Payload Construction**: The AI Agent passes this call payload to `@phylax/sdk`'s `PhylaxRuntimeClient`.
+3. **Payload Construction**: The AI Agent passes this call payload to `@phylax-sdk/sdk`'s `PhylaxRuntimeClient`.
 4. **Local Signing**: The SDK structures a standard **ERC-4337 UserOperation (UserOp)**, signs it locally with the delegated **Session Key**, and forwards it to an ERC-4337 Bundler queue.
 5. **On-Chain Policy Validation**: 
    *   The `EntryPoint` contract triggers `validateUserOp` on the agent's `GuardedAccount`.
@@ -194,3 +194,4 @@ This is the end-to-end path of a single transaction executed by an AI Agent unde
 
 ## 📄 License
 This repository is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
+

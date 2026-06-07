@@ -64,7 +64,14 @@ export default function LandingFooter() {
               >
                 GitHub
               </a>
-              <span className="block">Phylax SDK (NPM)</span>
+              <a
+                href="https://www.npmjs.com/package/@phylax-sdk/sdk"
+                target="_blank"
+                rel="noreferrer"
+                className="block transition hover:text-white"
+              >
+                Phylax SDK (NPM)
+              </a>
             </div>
           </div>
         </StaggerItem>

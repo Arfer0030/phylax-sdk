@@ -1,4 +1,4 @@
-# 🛡️ Phylax SDK: On-Chain Security Guardrails for AI Agents
+# 🛡️ Phylax SDK: Bounded Intelligence, Verifiable Execution
 
 ![Phylax Banner](./web/public/images/og-banner.png)
 
